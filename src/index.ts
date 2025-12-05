@@ -9,6 +9,7 @@ import {
   ZodArray,
 } from "zod";
 import { QueryAbilities, OPERATORS, OPERATOR_MAP } from "./types";
+import { IFieldDefinition, FieldTypeEnum } from "./types";
 // extract zod type
 function getZodTypeName(schema: ZodTypeAny): string {
   if (schema instanceof ZodArray) {
@@ -154,4 +155,115 @@ export function convertToMongoQuery(
       [mongoOp]: parsedValue,
     },
   };
+}
+
+const rootFieldToZodSchema = (rootField: IFieldDefinition, maxLevel = 3) => {
+  const zodSchema: Record<string, z.ZodTypeAny> = {};
+
+  if (!rootField.fields || maxLevel <= 0) {
+    return zodSchema;
+  }
+
+  const convertFieldToZod = (
+    field: IFieldDefinition,
+    currentLevel: number
+  ): z.ZodTypeAny => {
+    if (currentLevel <= 0) {
+      return z.any();
+    }
+
+    const fieldName = field.populateData?.path || field.name;
+    let schema: z.ZodTypeAny;
+
+    switch (field.type) {
+      case FieldTypeEnum.STRING:
+      case FieldTypeEnum.RICH_TEXT:
+        schema = z.string();
+        break;
+
+      case FieldTypeEnum.NUMBER:
+        schema = z.number();
+        break;
+
+      case FieldTypeEnum.BOOLEAN:
+        schema = z.boolean();
+        break;
+
+      case FieldTypeEnum.DATE:
+        schema = z.coerce.date();
+        break;
+
+      case FieldTypeEnum.ENUM:
+        if (field.enumValues) {
+          const enumValues = Object.keys(field.enumValues);
+          schema = z.enum(enumValues as [string, ...string[]]);
+        } else {
+          schema = z.string();
+        }
+        break;
+
+      case FieldTypeEnum.EMBEDDED_DOCUMENT:
+      case FieldTypeEnum.ARRAY_EMBEDDED_DOCUMENTS:
+        if (
+          field.populateData?.referencePopulated?.fields &&
+          field.populateData.referencePopulated.fields.length > 0
+        ) {
+          const nestedSchema: Record<string, z.ZodTypeAny> = {};
+          for (const subField of field.populateData.referencePopulated.fields) {
+            const subFieldName = subField.populateData?.path || subField.name;
+            let subFieldSchema = convertFieldToZod(subField, currentLevel - 1);
+            // if (!subField.required) {
+            //   subFieldSchema = subFieldSchema.optional();
+            // }
+            nestedSchema[subFieldName] = subFieldSchema;
+          }
+          if (field.type === FieldTypeEnum.EMBEDDED_DOCUMENT) {
+            schema = z.object(nestedSchema);
+          } else {
+            schema = z.array(z.object(nestedSchema));
+          }
+        } else {
+          schema = z.array(z.any());
+        }
+        break;
+
+      case FieldTypeEnum.ARRAY_REFERENCE:
+        schema = z.array(z.string());
+        break;
+
+      case FieldTypeEnum.REFERENCE:
+        schema = z.string();
+        break;
+
+      case FieldTypeEnum.COMPUTATION:
+        // Computation fields are typically read-only, use any or the computed type
+        schema = z.any();
+        break;
+
+      default:
+        schema = z.any();
+    }
+
+    // Apply optional if field is not required (Zod schemas are required by default)
+    if (!field.required) {
+      schema = schema.optional();
+    }
+
+    if (field.description) {
+      schema = schema.describe(field.description);
+    }
+
+    return schema;
+  };
+
+  for (const subField of rootField.fields) {
+    const fieldName = subField.populateData?.path || subField.name;
+    zodSchema[fieldName] = convertFieldToZod(subField, maxLevel);
+  }
+
+  return zodSchema;
+};
+
+export function rootFieldToZodSchemaFromString(rootField: string) {
+  return rootFieldToZodSchema(JSON.parse(rootField));
 }

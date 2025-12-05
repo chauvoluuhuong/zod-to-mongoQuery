@@ -1,6 +1,6 @@
 {
   "name": "zod-to-mongo-query",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "description": "A TypeScript utility functions package",
   "main": "dist/index.js",

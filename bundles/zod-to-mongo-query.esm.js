@@ -661,7 +661,7 @@ const base64url = /^[A-Za-z0-9_-]*$/;
 const e164 = /^\+(?:[0-9]){6,14}[0-9]$/;
 // const dateSource = `((\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-((0[13578]|1[02])-(0[1-9]|[12]\\d|3[01])|(0[469]|11)-(0[1-9]|[12]\\d|30)|(02)-(0[1-9]|1\\d|2[0-8])))`;
 const dateSource = `(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))`;
-const date$1 = /*@__PURE__*/ new RegExp(`^${dateSource}$`);
+const date$2 = /*@__PURE__*/ new RegExp(`^${dateSource}$`);
 function timeSource(args) {
     const hhmm = `(?:[01]\\d|2[0-3]):[0-5]\\d`;
     const regex = typeof args.precision === "number"
@@ -688,13 +688,13 @@ function datetime$1(args) {
     const timeRegex = `${time}(?:${opts.join("|")})`;
     return new RegExp(`^${dateSource}T(?:${timeRegex})$`);
 }
-const string = (params) => {
+const string$1 = (params) => {
     const regex = params ? `[\\s\\S]{${params?.minimum ?? 0},${params?.maximum ?? ""}}` : `[\\s\\S]*`;
     return new RegExp(`^${regex}$`);
 };
 const integer = /^-?\d+$/;
-const number = /^-?\d+(?:\.\d+)?/;
-const boolean = /^(?:true|false)$/i;
+const number$1 = /^-?\d+(?:\.\d+)?/;
+const boolean$1 = /^(?:true|false)$/i;
 // regex for string with no uppercase letters
 const lowercase = /^[^A-Z]*$/;
 // regex for string with no lowercase letters
@@ -1283,7 +1283,7 @@ const $ZodType = /*@__PURE__*/ $constructor("$ZodType", (inst, def) => {
 });
 const $ZodString = /*@__PURE__*/ $constructor("$ZodString", (inst, def) => {
     $ZodType.init(inst, def);
-    inst._zod.pattern = [...(inst?._zod.bag?.patterns ?? [])].pop() ?? string(inst._zod.bag);
+    inst._zod.pattern = [...(inst?._zod.bag?.patterns ?? [])].pop() ?? string$1(inst._zod.bag);
     inst._zod.parse = (payload, _) => {
         if (def.coerce)
             try {
@@ -1426,7 +1426,7 @@ const $ZodISODateTime = /*@__PURE__*/ $constructor("$ZodISODateTime", (inst, def
     $ZodStringFormat.init(inst, def);
 });
 const $ZodISODate = /*@__PURE__*/ $constructor("$ZodISODate", (inst, def) => {
-    def.pattern ?? (def.pattern = date$1);
+    def.pattern ?? (def.pattern = date$2);
     $ZodStringFormat.init(inst, def);
 });
 const $ZodISOTime = /*@__PURE__*/ $constructor("$ZodISOTime", (inst, def) => {
@@ -1595,7 +1595,7 @@ const $ZodJWT = /*@__PURE__*/ $constructor("$ZodJWT", (inst, def) => {
 });
 const $ZodNumber = /*@__PURE__*/ $constructor("$ZodNumber", (inst, def) => {
     $ZodType.init(inst, def);
-    inst._zod.pattern = inst._zod.bag.pattern ?? number;
+    inst._zod.pattern = inst._zod.bag.pattern ?? number$1;
     inst._zod.parse = (payload, _ctx) => {
         if (def.coerce)
             try {
@@ -1629,7 +1629,7 @@ const $ZodNumberFormat = /*@__PURE__*/ $constructor("$ZodNumberFormat", (inst, d
 });
 const $ZodBoolean = /*@__PURE__*/ $constructor("$ZodBoolean", (inst, def) => {
     $ZodType.init(inst, def);
-    inst._zod.pattern = boolean;
+    inst._zod.pattern = boolean$1;
     inst._zod.parse = (payload, _ctx) => {
         if (def.coerce)
             try {
@@ -1647,6 +1647,10 @@ const $ZodBoolean = /*@__PURE__*/ $constructor("$ZodBoolean", (inst, def) => {
         });
         return payload;
     };
+});
+const $ZodAny = /*@__PURE__*/ $constructor("$ZodAny", (inst, def) => {
+    $ZodType.init(inst, def);
+    inst._zod.parse = (payload) => payload;
 });
 const $ZodUnknown = /*@__PURE__*/ $constructor("$ZodUnknown", (inst, def) => {
     $ZodType.init(inst, def);
@@ -2419,6 +2423,12 @@ function registry() {
 (_a = globalThis).__zod_globalRegistry ?? (_a.__zod_globalRegistry = registry());
 const globalRegistry = globalThis.__zod_globalRegistry;
 
+function _string(Class, params) {
+    return new Class({
+        type: "string",
+        ...normalizeParams(params),
+    });
+}
 function _email(Class, params) {
     return new Class({
         type: "string",
@@ -2656,6 +2666,13 @@ function _isoDuration(Class, params) {
         ...normalizeParams(params),
     });
 }
+function _number(Class, params) {
+    return new Class({
+        type: "number",
+        checks: [],
+        ...normalizeParams(params),
+    });
+}
 function _int(Class, params) {
     return new Class({
         type: "number",
@@ -2663,6 +2680,17 @@ function _int(Class, params) {
         abort: false,
         format: "safeint",
         ...normalizeParams(params),
+    });
+}
+function _boolean(Class, params) {
+    return new Class({
+        type: "boolean",
+        ...normalizeParams(params),
+    });
+}
+function _any(Class) {
+    return new Class({
+        type: "any",
     });
 }
 function _unknown(Class) {
@@ -2673,6 +2701,13 @@ function _unknown(Class) {
 function _never(Class, params) {
     return new Class({
         type: "never",
+        ...normalizeParams(params),
+    });
+}
+function _coercedDate(Class, params) {
+    return new Class({
+        type: "date",
+        coerce: true,
         ...normalizeParams(params),
     });
 }
@@ -2871,7 +2906,7 @@ const ZodISODate = /*@__PURE__*/ $constructor("ZodISODate", (inst, def) => {
     $ZodISODate.init(inst, def);
     ZodStringFormat.init(inst, def);
 });
-function date(params) {
+function date$1(params) {
     return _isoDate(ZodISODate, params);
 }
 const ZodISOTime = /*@__PURE__*/ $constructor("ZodISOTime", (inst, def) => {
@@ -3081,10 +3116,13 @@ const ZodString = /*@__PURE__*/ $constructor("ZodString", (inst, def) => {
     inst.e164 = (params) => inst.check(_e164(ZodE164, params));
     // iso
     inst.datetime = (params) => inst.check(datetime(params));
-    inst.date = (params) => inst.check(date(params));
+    inst.date = (params) => inst.check(date$1(params));
     inst.time = (params) => inst.check(time(params));
     inst.duration = (params) => inst.check(duration(params));
 });
+function string(params) {
+    return _string(ZodString, params);
+}
 const ZodStringFormat = /*@__PURE__*/ $constructor("ZodStringFormat", (inst, def) => {
     $ZodStringFormat.init(inst, def);
     _ZodString.init(inst, def);
@@ -3210,6 +3248,9 @@ const ZodNumber = /*@__PURE__*/ $constructor("ZodNumber", (inst, def) => {
     inst.isFinite = true;
     inst.format = bag.format ?? null;
 });
+function number(params) {
+    return _number(ZodNumber, params);
+}
 const ZodNumberFormat = /*@__PURE__*/ $constructor("ZodNumberFormat", (inst, def) => {
     $ZodNumberFormat.init(inst, def);
     ZodNumber.init(inst, def);
@@ -3221,6 +3262,16 @@ const ZodBoolean = /*@__PURE__*/ $constructor("ZodBoolean", (inst, def) => {
     $ZodBoolean.init(inst, def);
     ZodType.init(inst, def);
 });
+function boolean(params) {
+    return _boolean(ZodBoolean, params);
+}
+const ZodAny = /*@__PURE__*/ $constructor("ZodAny", (inst, def) => {
+    $ZodAny.init(inst, def);
+    ZodType.init(inst, def);
+});
+function any() {
+    return _any(ZodAny);
+}
 const ZodUnknown = /*@__PURE__*/ $constructor("ZodUnknown", (inst, def) => {
     $ZodUnknown.init(inst, def);
     ZodType.init(inst, def);
@@ -3281,6 +3332,14 @@ const ZodObject = /*@__PURE__*/ $constructor("ZodObject", (inst, def) => {
     inst.partial = (...args) => partial(ZodOptional, inst, args[0]);
     inst.required = (...args) => required(ZodNonOptional, inst, args[0]);
 });
+function object(shape, params) {
+    const def = {
+        type: "object",
+        shape: shape ?? {},
+        ...normalizeParams(params),
+    };
+    return new ZodObject(def);
+}
 const ZodUnion = /*@__PURE__*/ $constructor("ZodUnion", (inst, def) => {
     $ZodUnion.init(inst, def);
     ZodType.init(inst, def);
@@ -3504,6 +3563,61 @@ function superRefine(fn) {
     return _superRefine(fn);
 }
 
+function date(params) {
+    return _coercedDate(ZodDate, params);
+}
+
+var PopulateType;
+(function (PopulateType) {
+    // when the value is extracted from the same generic entity object
+    PopulateType["Basic"] = "basic";
+    // from another generic entity object
+    PopulateType["Reference"] = "reference";
+})(PopulateType || (PopulateType = {}));
+var CalculationTypeEnum;
+(function (CalculationTypeEnum) {
+    // it is for doing calculation with operator like subtraction, addition, multiplication, division...
+    CalculationTypeEnum["Simple"] = "basic";
+})(CalculationTypeEnum || (CalculationTypeEnum = {}));
+var OperatorEnum;
+(function (OperatorEnum) {
+    OperatorEnum["ADD"] = "+";
+    OperatorEnum["SUBTRACT"] = "-";
+    OperatorEnum["MULTIPLY"] = "*";
+    OperatorEnum["DIVIDE"] = "/";
+})(OperatorEnum || (OperatorEnum = {}));
+// the order of relation is from entity storing relation the another one
+var RelationTypeEnum;
+(function (RelationTypeEnum) {
+    RelationTypeEnum["ONE_TO_ONE"] = "one_to_one";
+    RelationTypeEnum["ONE_TO_MANY"] = "one_to_many";
+    RelationTypeEnum["MANY_TO_ONE"] = "many_to_one";
+    RelationTypeEnum["MANY_TO_MANY"] = "many_to_many";
+})(RelationTypeEnum || (RelationTypeEnum = {}));
+var RelationsDisplayedPositionsEnum;
+(function (RelationsDisplayedPositionsEnum) {
+    RelationsDisplayedPositionsEnum["LIST_GENERIC_ENTITY"] = "list_generic_entity";
+})(RelationsDisplayedPositionsEnum || (RelationsDisplayedPositionsEnum = {}));
+var FieldTypeEnum;
+(function (FieldTypeEnum) {
+    // ROOT_FIELD = "root_field",
+    FieldTypeEnum["COMPUTATION"] = "COMPUTATION";
+    FieldTypeEnum["ENUM"] = "enum";
+    FieldTypeEnum["RICH_TEXT"] = "rich_text";
+    FieldTypeEnum["STRING"] = "string";
+    FieldTypeEnum["NUMBER"] = "number";
+    FieldTypeEnum["REFERENCE"] = "reference";
+    FieldTypeEnum["BOOLEAN"] = "boolean";
+    FieldTypeEnum["DATE"] = "date";
+    // OBJECT = "object",
+    // ARRAY = "array",
+    FieldTypeEnum["ARRAY_REFERENCE"] = "array_of_object";
+    // the same embedded document of mongoDB
+    FieldTypeEnum["ARRAY_EMBEDDED_DOCUMENTS"] = "array_of_embedded_documents";
+    FieldTypeEnum["EMBEDDED_DOCUMENT"] = "embedded_document";
+    // the field group can be a object and is a subfield of the root field
+    FieldTypeEnum["FIELD_GROUP"] = "field_group";
+})(FieldTypeEnum || (FieldTypeEnum = {}));
 // base operators per type
 const OPERATORS = {
     string: ["eq", "ne", "in", "nin", "regex", "search"],
@@ -3654,6 +3768,97 @@ function convertToMongoQuery(field, operator, value, type // <-- type comes from
         },
     };
 }
+const rootFieldToZodSchema = (rootField, maxLevel = 3) => {
+    var _a;
+    const zodSchema = {};
+    if (!rootField.fields || maxLevel <= 0) {
+        return zodSchema;
+    }
+    const convertFieldToZod = (field, currentLevel) => {
+        var _a, _b, _c, _d;
+        if (currentLevel <= 0) {
+            return any();
+        }
+        ((_a = field.populateData) === null || _a === void 0 ? void 0 : _a.path) || field.name;
+        let schema;
+        switch (field.type) {
+            case FieldTypeEnum.STRING:
+            case FieldTypeEnum.RICH_TEXT:
+                schema = string();
+                break;
+            case FieldTypeEnum.NUMBER:
+                schema = number();
+                break;
+            case FieldTypeEnum.BOOLEAN:
+                schema = boolean();
+                break;
+            case FieldTypeEnum.DATE:
+                schema = date();
+                break;
+            case FieldTypeEnum.ENUM:
+                if (field.enumValues) {
+                    const enumValues = Object.keys(field.enumValues);
+                    schema = _enum(enumValues);
+                }
+                else {
+                    schema = string();
+                }
+                break;
+            case FieldTypeEnum.EMBEDDED_DOCUMENT:
+            case FieldTypeEnum.ARRAY_EMBEDDED_DOCUMENTS:
+                if (((_c = (_b = field.populateData) === null || _b === void 0 ? void 0 : _b.referencePopulated) === null || _c === void 0 ? void 0 : _c.fields) &&
+                    field.populateData.referencePopulated.fields.length > 0) {
+                    const nestedSchema = {};
+                    for (const subField of field.populateData.referencePopulated.fields) {
+                        const subFieldName = ((_d = subField.populateData) === null || _d === void 0 ? void 0 : _d.path) || subField.name;
+                        let subFieldSchema = convertFieldToZod(subField, currentLevel - 1);
+                        // if (!subField.required) {
+                        //   subFieldSchema = subFieldSchema.optional();
+                        // }
+                        nestedSchema[subFieldName] = subFieldSchema;
+                    }
+                    if (field.type === FieldTypeEnum.EMBEDDED_DOCUMENT) {
+                        schema = object(nestedSchema);
+                    }
+                    else {
+                        schema = array(object(nestedSchema));
+                    }
+                }
+                else {
+                    schema = array(any());
+                }
+                break;
+            case FieldTypeEnum.ARRAY_REFERENCE:
+                schema = array(string());
+                break;
+            case FieldTypeEnum.REFERENCE:
+                schema = string();
+                break;
+            case FieldTypeEnum.COMPUTATION:
+                // Computation fields are typically read-only, use any or the computed type
+                schema = any();
+                break;
+            default:
+                schema = any();
+        }
+        // Apply optional if field is not required (Zod schemas are required by default)
+        if (!field.required) {
+            schema = schema.optional();
+        }
+        if (field.description) {
+            schema = schema.describe(field.description);
+        }
+        return schema;
+    };
+    for (const subField of rootField.fields) {
+        const fieldName = ((_a = subField.populateData) === null || _a === void 0 ? void 0 : _a.path) || subField.name;
+        zodSchema[fieldName] = convertFieldToZod(subField, maxLevel);
+    }
+    return zodSchema;
+};
+function rootFieldToZodSchemaFromString(rootField) {
+    return rootFieldToZodSchema(JSON.parse(rootField));
+}
 
-export { convertToMongoQuery, getQueryAbilities };
+export { convertToMongoQuery, getQueryAbilities, rootFieldToZodSchemaFromString };
 //# sourceMappingURL=zod-to-mongo-query.esm.js.map

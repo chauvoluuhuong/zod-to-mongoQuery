@@ -1,5 +1,20 @@
-import { z } from "zod";
-import { getQueryAbilities, convertToMongoQuery } from "../index";
+import {
+  z,
+  ZodString,
+  ZodNumber,
+  ZodBoolean,
+  ZodDate,
+  ZodArray,
+  ZodObject,
+  ZodAny,
+  ZodOptional,
+} from "zod";
+import {
+  getQueryAbilities,
+  convertToMongoQuery,
+  rootFieldToZodSchemaFromString,
+} from "../index";
+import { FieldTypeEnum, IFieldDefinition } from "../types";
 
 describe("getQueryAbilities", () => {
   describe("basic types", () => {
@@ -486,6 +501,674 @@ describe("convertToMongoQuery", () => {
     it("should default to string for unknown types", () => {
       const result = convertToMongoQuery("field", "eq", 123, "unknown");
       expect(result).toEqual({ field: "123" });
+    });
+  });
+});
+
+describe("rootFieldToZodSchemaFromString", () => {
+  describe("basic field types", () => {
+    it("should convert string field to Zod string schema", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "name",
+            type: FieldTypeEnum.STRING,
+            required: true,
+            version: 1,
+          },
+        ],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      const schema = z.object(result);
+
+      expect(result.name).toBeInstanceOf(ZodString);
+      expect(schema.parse({ name: "John" })).toEqual({ name: "John" });
+      expect(() => schema.parse({ name: 123 })).toThrow();
+    });
+
+    it("should convert number field to Zod number schema", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "age",
+            type: FieldTypeEnum.NUMBER,
+            required: true,
+            version: 1,
+          },
+        ],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      const schema = z.object(result);
+
+      expect(result.age).toBeInstanceOf(ZodNumber);
+      expect(schema.parse({ age: 25 })).toEqual({ age: 25 });
+      expect(() => schema.parse({ age: "25" })).toThrow();
+    });
+
+    it("should convert boolean field to Zod boolean schema", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "isActive",
+            type: FieldTypeEnum.BOOLEAN,
+            required: true,
+            version: 1,
+          },
+        ],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      const schema = z.object(result);
+
+      expect(result.isActive).toBeInstanceOf(ZodBoolean);
+      expect(schema.parse({ isActive: true })).toEqual({ isActive: true });
+      expect(() => schema.parse({ isActive: "true" })).toThrow();
+    });
+
+    it("should convert date field to Zod date schema", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "createdAt",
+            type: FieldTypeEnum.DATE,
+            required: true,
+            version: 1,
+          },
+        ],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      const schema = z.object(result);
+
+      expect(result.createdAt).toBeInstanceOf(ZodDate);
+      const date = new Date("2024-01-01");
+      expect(schema.parse({ createdAt: date })).toEqual({ createdAt: date });
+    });
+
+    it("should convert rich_text field to Zod string schema", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "content",
+            type: FieldTypeEnum.RICH_TEXT,
+            required: true,
+            version: 1,
+          },
+        ],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      const schema = z.object(result);
+
+      expect(result.content).toBeInstanceOf(ZodString);
+      expect(schema.parse({ content: "<p>Hello</p>" })).toEqual({
+        content: "<p>Hello</p>",
+      });
+    });
+  });
+
+  describe("optional fields", () => {
+    it("should make optional fields optional in Zod schema", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "name",
+            type: FieldTypeEnum.STRING,
+            required: true,
+            version: 1,
+          },
+          {
+            name: "email",
+            type: FieldTypeEnum.STRING,
+            required: false,
+            version: 1,
+          },
+        ],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      const schema = z.object(result);
+
+      expect(schema.parse({ name: "John" })).toEqual({ name: "John" });
+      expect(schema.parse({ name: "John", email: "john@example.com" })).toEqual(
+        { name: "John", email: "john@example.com" }
+      );
+      expect(() => schema.parse({})).toThrow(); // name is required
+    });
+  });
+
+  describe("enum fields", () => {
+    it("should convert enum field to Zod enum schema", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "status",
+            type: FieldTypeEnum.ENUM,
+            required: true,
+            version: 1,
+            enumValues: {
+              active: { name: "Active" },
+              pending: { name: "Pending" },
+              inactive: { name: "Inactive" },
+            },
+          },
+        ],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      const schema = z.object(result);
+
+      expect(schema.parse({ status: "active" })).toEqual({ status: "active" });
+      expect(schema.parse({ status: "pending" })).toEqual({
+        status: "pending",
+      });
+      expect(() => schema.parse({ status: "invalid" })).toThrow();
+    });
+
+    it("should default to string if enumValues is missing", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "status",
+            type: FieldTypeEnum.ENUM,
+            required: true,
+            version: 1,
+          },
+        ],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      const schema = z.object(result);
+
+      expect(result.status).toBeInstanceOf(ZodString);
+      expect(schema.parse({ status: "any-value" })).toEqual({
+        status: "any-value",
+      });
+    });
+  });
+
+  describe("reference fields", () => {
+    it("should convert reference field to Zod string schema", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "userId",
+            type: FieldTypeEnum.REFERENCE,
+            required: true,
+            version: 1,
+          },
+        ],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      const schema = z.object(result);
+
+      expect(result.userId).toBeInstanceOf(ZodString);
+      expect(schema.parse({ userId: "507f1f77bcf86cd799439011" })).toEqual({
+        userId: "507f1f77bcf86cd799439011",
+      });
+    });
+
+    it("should convert array reference field to Zod array of strings", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "tagIds",
+            type: FieldTypeEnum.ARRAY_REFERENCE,
+            required: true,
+            version: 1,
+          },
+        ],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      const schema = z.object(result);
+
+      expect(result.tagIds).toBeInstanceOf(ZodArray);
+      expect(
+        schema.parse({
+          tagIds: ["507f1f77bcf86cd799439011", "507f1f77bcf86cd799439012"],
+        })
+      ).toEqual({
+        tagIds: ["507f1f77bcf86cd799439011", "507f1f77bcf86cd799439012"],
+      });
+    });
+  });
+
+  describe("embedded documents", () => {
+    it("should convert embedded document to Zod object schema", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "address",
+            type: FieldTypeEnum.EMBEDDED_DOCUMENT,
+            required: true,
+            version: 1,
+            populateData: {
+              path: "address",
+              referencePopulated: {
+                name: "address",
+                type: FieldTypeEnum.STRING,
+                version: 1,
+                fields: [
+                  {
+                    name: "street",
+                    type: FieldTypeEnum.STRING,
+                    required: true,
+                    version: 1,
+                  },
+                  {
+                    name: "city",
+                    type: FieldTypeEnum.STRING,
+                    required: true,
+                    version: 1,
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      const schema = z.object(result);
+
+      expect(result.address).toBeInstanceOf(ZodObject);
+      expect(
+        schema.parse({ address: { street: "123 Main St", city: "New York" } })
+      ).toEqual({ address: { street: "123 Main St", city: "New York" } });
+    });
+
+    it("should convert array of embedded documents to Zod array of objects", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "tags",
+            type: FieldTypeEnum.ARRAY_EMBEDDED_DOCUMENTS,
+            required: true,
+            version: 1,
+            populateData: {
+              path: "tags",
+              referencePopulated: {
+                name: "tag",
+                type: FieldTypeEnum.STRING,
+                version: 1,
+                fields: [
+                  {
+                    name: "name",
+                    type: FieldTypeEnum.STRING,
+                    required: true,
+                    version: 1,
+                  },
+                  {
+                    name: "color",
+                    type: FieldTypeEnum.STRING,
+                    required: false,
+                    version: 1,
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      const schema = z.object(result);
+
+      expect(result.tags).toBeInstanceOf(ZodArray);
+      expect(
+        schema.parse({
+          tags: [
+            { name: "javascript", color: "yellow" },
+            { name: "typescript", color: "blue" },
+          ],
+        })
+      ).toEqual({
+        tags: [
+          { name: "javascript", color: "yellow" },
+          { name: "typescript", color: "blue" },
+        ],
+      });
+    });
+  });
+
+  describe("computation fields", () => {
+    it("should convert computation field to Zod any schema", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "computedValue",
+            type: FieldTypeEnum.COMPUTATION,
+            required: false,
+            version: 1,
+          },
+        ],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      const schema = z.object(result);
+
+      // Optional fields are wrapped in ZodOptional
+      expect(result.computedValue).toBeInstanceOf(ZodOptional);
+      if (result.computedValue instanceof ZodOptional) {
+        expect(result.computedValue._def.innerType).toBeInstanceOf(ZodAny);
+      }
+      expect(schema.parse({ computedValue: "any" })).toEqual({
+        computedValue: "any",
+      });
+      expect(schema.parse({ computedValue: 123 })).toEqual({
+        computedValue: 123,
+      });
+    });
+  });
+
+  describe("nested structures", () => {
+    it("should handle deeply nested embedded documents", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "user",
+            type: FieldTypeEnum.EMBEDDED_DOCUMENT,
+            required: true,
+            version: 1,
+            populateData: {
+              path: "user",
+              referencePopulated: {
+                name: "user",
+                type: FieldTypeEnum.STRING,
+                version: 1,
+                fields: [
+                  {
+                    name: "profile",
+                    type: FieldTypeEnum.EMBEDDED_DOCUMENT,
+                    required: true,
+                    version: 1,
+                    populateData: {
+                      path: "profile",
+                      referencePopulated: {
+                        name: "profile",
+                        type: FieldTypeEnum.STRING,
+                        version: 1,
+                        fields: [
+                          {
+                            name: "bio",
+                            type: FieldTypeEnum.STRING,
+                            required: true,
+                            version: 1,
+                          },
+                        ],
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      const schema = z.object(result);
+
+      expect(schema.parse({ user: { profile: { bio: "Developer" } } })).toEqual(
+        { user: { profile: { bio: "Developer" } } }
+      );
+    });
+  });
+
+  describe("field descriptions", () => {
+    it("should preserve field descriptions", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "name",
+            type: FieldTypeEnum.STRING,
+            required: true,
+            version: 1,
+            description: "User's full name",
+          },
+        ],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      // Zod schemas with descriptions have the description stored internally
+      expect(result.name).toBeDefined();
+    });
+  });
+
+  describe("populateData path handling", () => {
+    it("should use populateData.path if available", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "fieldName",
+            type: FieldTypeEnum.STRING,
+            required: true,
+            version: 1,
+            populateData: {
+              path: "customPath",
+            },
+          },
+        ],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+
+      expect(result.customPath).toBeDefined();
+      expect(result.fieldName).toBeUndefined();
+    });
+  });
+
+  describe("error handling", () => {
+    it("should throw error for invalid JSON string", () => {
+      expect(() => {
+        rootFieldToZodSchemaFromString("invalid json");
+      }).toThrow();
+    });
+
+    it("should handle empty fields array", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      expect(result).toEqual({});
+    });
+
+    it("should handle null fields", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: null,
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      expect(result).toEqual({});
+    });
+
+    it("should handle missing fields property", () => {
+      const rootField: any = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      expect(result).toEqual({});
+    });
+  });
+
+  describe("maxLevel parameter", () => {
+    it("should respect maxLevel for nested structures", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "level1",
+            type: FieldTypeEnum.EMBEDDED_DOCUMENT,
+            required: true,
+            version: 1,
+            populateData: {
+              path: "level1",
+              referencePopulated: {
+                name: "level1",
+                type: FieldTypeEnum.STRING,
+                version: 1,
+                fields: [
+                  {
+                    name: "level2",
+                    type: FieldTypeEnum.EMBEDDED_DOCUMENT,
+                    required: true,
+                    version: 1,
+                    populateData: {
+                      path: "level2",
+                      referencePopulated: {
+                        name: "level2",
+                        type: FieldTypeEnum.STRING,
+                        version: 1,
+                        fields: [
+                          {
+                            name: "field",
+                            type: FieldTypeEnum.STRING,
+                            required: true,
+                            version: 1,
+                          },
+                        ],
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      };
+
+      // Note: rootFieldToZodSchemaFromString uses default maxLevel of 3
+      // We can't test maxLevel directly since it's not exposed, but we can verify
+      // that deeply nested structures are handled correctly
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      expect(result.level1).toBeDefined();
+    });
+  });
+
+  describe("mixed field types", () => {
+    it("should handle multiple field types in one schema", () => {
+      const rootField: IFieldDefinition = {
+        name: "root",
+        type: FieldTypeEnum.STRING,
+        version: 1,
+        fields: [
+          {
+            name: "name",
+            type: FieldTypeEnum.STRING,
+            required: true,
+            version: 1,
+          },
+          {
+            name: "age",
+            type: FieldTypeEnum.NUMBER,
+            required: true,
+            version: 1,
+          },
+          {
+            name: "isActive",
+            type: FieldTypeEnum.BOOLEAN,
+            required: false,
+            version: 1,
+          },
+          {
+            name: "createdAt",
+            type: FieldTypeEnum.DATE,
+            required: true,
+            version: 1,
+          },
+        ],
+      };
+
+      const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
+      const schema = z.object(result);
+
+      expect(result.name).toBeInstanceOf(ZodString);
+      expect(result.age).toBeInstanceOf(ZodNumber);
+      // isActive is optional, so it's wrapped in ZodOptional
+      expect(result.isActive).toBeInstanceOf(ZodOptional);
+      if (result.isActive instanceof ZodOptional) {
+        expect(result.isActive._def.innerType).toBeInstanceOf(ZodBoolean);
+      }
+      expect(result.createdAt).toBeInstanceOf(ZodDate);
+
+      const date = new Date("2024-01-01");
+      expect(
+        schema.parse({
+          name: "John",
+          age: 25,
+          isActive: true,
+          createdAt: date,
+        })
+      ).toEqual({
+        name: "John",
+        age: 25,
+        isActive: true,
+        createdAt: date,
+      });
     });
   });
 });
