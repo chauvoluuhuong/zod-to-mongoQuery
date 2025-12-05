@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zod to MongoQuery - CDN Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+    }
+    .output {
+      background: #f8f8f8;
+      padding: 15px;
+      border-radius: 4px;
+      margin-top: 20px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      border: 1px solid #ddd;
+    }
+    .success {
+      color: #28a745;
+      font-weight: bold;
+    }
+    .error {
+      color: #dc3545;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 Zod to MongoQuery CDN Test</h1>
+    <p>This page tests the IIFE bundle loaded from CDN.</p>
+    
+    <div id="output" class="output">Loading bundles...</div>
+  </div>
+
+  <!-- Load zod from CDN (needed for schema creation) -->
+  <script src="https://cdn.jsdelivr.net/npm/zod@4.1.13/index.min.js"></script>
+  
+  <!-- Load zod-to-mongo-query bundle (IIFE) -->
+  <!-- For local testing, use: -->
+  <script src="../bundles/zod-to-mongo-query.iife.min.js"></script>
+  <!-- For CDN testing, use: -->
+  <!-- <script src="https://cdn.jsdelivr.net/npm/zod-to-mongo-query@1.0.1/bundles/zod-to-mongo-query.iife.min.js"></script> -->
+  
+  <script>
+    const output = document.getElementById('output');
+    let log = [];
+    
+    function addLog(message, type = 'info') {
+      const prefix = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+      log.push(`${prefix} ${message}`);
+      output.textContent = log.join('\n');
+    }
+    
+    try {
+      // Check if ZodToMongoQuery is available
+      if (typeof ZodToMongoQuery === 'undefined') {
+        throw new Error('ZodToMongoQuery is not defined. Bundle may not have loaded correctly.');
+      }
+      addLog('ZodToMongoQuery global variable found', 'success');
+      
+      // Check if zod is available
+      if (typeof z === 'undefined') {
+        throw new Error('zod (z) is not defined. Please include zod from CDN.');
+      }
+      addLog('zod library found', 'success');
+      
+      // Extract functions
+      const { getQueryAbilities, convertToMongoQuery } = ZodToMongoQuery;
+      
+      if (!getQueryAbilities || !convertToMongoQuery) {
+        throw new Error('Required functions not found in ZodToMongoQuery');
+      }
+      addLog('Functions extracted successfully', 'success');
+      
+      // Test 1: Create a schema and get query abilities
+      addLog('\n--- Test 1: getQueryAbilities ---');
+      const schema = z.object({
+        name: z.string(),
+        age: z.number(),
+        email: z.string(),
+        isActive: z.boolean(),
+        createdAt: z.date(),
+      });
+      
+      const abilities = getQueryAbilities(schema);
+      addLog('Schema created and abilities extracted');
+      addLog('Abilities: ' + JSON.stringify(abilities, null, 2));
+      
+      // Test 2: Convert to MongoDB query
+      addLog('\n--- Test 2: convertToMongoQuery ---');
+      
+      const query1 = convertToMongoQuery("age", "gte", 18, "number");
+      addLog('Query 1 (age >= 18): ' + JSON.stringify(query1));
+      
+      const query2 = convertToMongoQuery("name", "search", "john", "string");
+      addLog('Query 2 (name search): ' + JSON.stringify(query2));
+      
+      const query3 = convertToMongoQuery("isActive", "eq", true, "boolean");
+      addLog('Query 3 (isActive = true): ' + JSON.stringify(query3));
+      
+      const query4 = convertToMongoQuery("email", "in", ["test@example.com", "admin@example.com"], "string");
+      addLog('Query 4 (email in array): ' + JSON.stringify(query4));
+      
+      addLog('\n🎉 All tests passed! Bundle is working correctly.', 'success');
+      
+    } catch (error) {
+      addLog(`\nError: ${error.message}`, 'error');
+      addLog(`Stack: ${error.stack}`, 'error');
+    }
+  </script>
+</body>
+</html>
+

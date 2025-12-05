@@ -2,16 +2,22 @@ import typescript from "@rollup/plugin-typescript";
 import resolve from "@rollup/plugin-node-resolve";
 import terser from "@rollup/plugin-terser";
 
-const name = "TypescriptUtils";
+const name = "ZodToMongoQuery";
+const packageName = "zod-to-mongo-query";
 
 const baseConfig = {
   input: "src/index.ts",
   plugins: [
-    resolve(),
+    resolve({
+      // Bundle all dependencies (including zod) for CDN use
+      preferBuiltins: false,
+    }),
     typescript({
       tsconfig: "./tsconfig.bundle.json",
     }),
   ],
+  // Bundle all dependencies instead of externalizing them
+  external: [],
 };
 
 export default [
@@ -19,10 +25,11 @@ export default [
   {
     ...baseConfig,
     output: {
-      file: "bundles/typescript-utils.umd.js",
+      file: `bundles/${packageName}.umd.js`,
       format: "umd",
       name,
       sourcemap: true,
+      globals: {},
     },
   },
 
@@ -31,10 +38,11 @@ export default [
     ...baseConfig,
     plugins: [...baseConfig.plugins, terser()],
     output: {
-      file: "bundles/typescript-utils.umd.min.js",
+      file: `bundles/${packageName}.umd.min.js`,
       format: "umd",
       name,
       sourcemap: true,
+      globals: {},
     },
   },
 
@@ -42,7 +50,7 @@ export default [
   {
     ...baseConfig,
     output: {
-      file: "bundles/typescript-utils.iife.js",
+      file: `bundles/${packageName}.iife.js`,
       format: "iife",
       name,
       sourcemap: true,
@@ -54,7 +62,7 @@ export default [
     ...baseConfig,
     plugins: [...baseConfig.plugins, terser()],
     output: {
-      file: "bundles/typescript-utils.iife.min.js",
+      file: `bundles/${packageName}.iife.min.js`,
       format: "iife",
       name,
       sourcemap: true,
@@ -65,7 +73,7 @@ export default [
   {
     ...baseConfig,
     output: {
-      file: "bundles/typescript-utils.esm.js",
+      file: `bundles/${packageName}.esm.js`,
       format: "es",
       sourcemap: true,
     },
@@ -76,7 +84,7 @@ export default [
     ...baseConfig,
     plugins: [...baseConfig.plugins, terser()],
     output: {
-      file: "bundles/typescript-utils.esm.min.js",
+      file: `bundles/${packageName}.esm.min.js`,
       format: "es",
       sourcemap: true,
     },
