@@ -1,5 +1,6 @@
 import typescript from "@rollup/plugin-typescript";
 import resolve from "@rollup/plugin-node-resolve";
+import commonjs from "@rollup/plugin-commonjs";
 import terser from "@rollup/plugin-terser";
 
 const name = "ZodToMongoQuery";
@@ -11,6 +12,12 @@ const baseConfig = {
     resolve({
       // Bundle all dependencies (including zod) for CDN use
       preferBuiltins: false,
+      browser: true,
+      exportConditions: ["default", "module", "import"],
+    }),
+    commonjs({
+      // Convert CommonJS modules to ES6
+      transformMixedEsModules: true,
     }),
     typescript({
       tsconfig: "./tsconfig.bundle.json",

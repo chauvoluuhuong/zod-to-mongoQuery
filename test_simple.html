@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Bundle Test</title>
+</head>
+
+<body>
+  <h1>Bundle Test</h1>
+  <div id="output"></div>
+
+  <!-- Load zod -->
+  <script src="https://cdn.jsdelivr.net/npm/zod@4.1.13/index.min.js"></script>
+
+  <!-- Load local bundle with cache busting -->
+  <script src="./bundles/zod-to-mongo-query.iife.min.js?v=<?php echo time(); ?>"></script>
+  <!-- Or use this if PHP is not available: -->
+  <!-- <script src="./bundles/zod-to-mongo-query.iife.min.js?v=2"></script> -->
+
+  <script>
+    console.log('Testing bundle...');
+
+    // Check if ZodToMongoQuery is available
+    if (typeof ZodToMongoQuery === 'undefined') {
+      document.getElementById('output').innerHTML = '<p style="color: red;">❌ ERROR: ZodToMongoQuery is not defined!</p>';
+      console.error('ZodToMongoQuery is undefined');
+    } else {
+      console.log('✅ ZodToMongoQuery loaded:', ZodToMongoQuery);
+
+      try {
+        // Test destructuring
+        const { getQueryAbilities, convertToMongoQuery, rootFieldToZodSchemaFromString } = ZodToMongoQuery;
+
+        if (!getQueryAbilities || !convertToMongoQuery) {
+          throw new Error('Functions not found in ZodToMongoQuery');
+        }
+
+        // Test basic functionality
+        if (typeof z !== 'undefined') {
+          const schema = z.object({
+            name: z.string(),
+            age: z.number(),
+          });
+
+          const abilities = getQueryAbilities(schema);
+          const query = convertToMongoQuery("age", "gte", 18, "number");
+
+          document.getElementById('output').innerHTML = `
+            <p style="color: green;">✅ SUCCESS! Bundle is working correctly.</p>
+            <h3>Test Results:</h3>
+            <pre>Abilities: ${JSON.stringify(abilities, null, 2)}</pre>
+            <pre>Query: ${JSON.stringify(query, null, 2)}</pre>
+          `;
+          console.log('✅ All tests passed!');
+        } else {
+          document.getElementById('output').innerHTML = '<p style="color: orange;">⚠️ Zod library not loaded (needed for schema creation)</p>';
+        }
+      } catch (error) {
+        document.getElementById('output').innerHTML = `<p style="color: red;">❌ ERROR: ${error.message}</p>`;
+        console.error('Error:', error);
+      }
+    }
+  </script>
+</body>
+
+</html>

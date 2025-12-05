@@ -159,7 +159,7 @@ export function convertToMongoQuery(
 
 const rootFieldToZodSchema = (rootField: IFieldDefinition, maxLevel = 3) => {
   const zodSchema: Record<string, z.ZodTypeAny> = {};
-
+  console.log("rootField.fields", rootField);
   if (!rootField.fields || maxLevel <= 0) {
     return zodSchema;
   }

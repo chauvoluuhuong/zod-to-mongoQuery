@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <!-- Load zod (needed for schema creation) -->
+  <!-- <script src="https://cdn.jsdelivr.net/npm/zod@4.1.13/index.min.js"></script> -->
+  <!-- Load your library - Using local bundle for testing -->
+  <script src="./bundles/zod-to-mongo-query.iife.min.js?v=2"></script>
+  <!-- For CDN testing (after publishing), use: -->
+  <!-- <script src="https://cdn.jsdelivr.net/npm/zod-to-mongo-query@1.0.4/bundles/zod-to-mongo-query.iife.min.js"></script> -->
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Load zod (needed for schema creation) -->
+  <title>Custom View - Entity Search Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .section {
+      margin-top: 30px;
+      padding: 20px;
+      background: #f9f9f9;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .section h2 {
+      color: #555;
+      margin-top: 0;
+      margin-bottom: 15px;
+      font-size: 1.3em;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #666;
+    }
+
+    .form-group select,
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    .form-group select {
+      cursor: pointer;
+    }
+
+    .search-fields-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .search-field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .search-field-row {
+      display: flex;
+      gap: 5px;
+    }
+
+    .search-field-row select,
+    .search-field-row input {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    button {
+      padding: 10px 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-right: 10px;
+      margin-top: 5px;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .error {
+      color: #d32f2f;
+      padding: 10px;
+      background: #ffebee;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+
+    .success {
+      color: #2e7d32;
+      padding: 10px;
+      background: #e8f5e9;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+
+    .loading {
+      color: #1976d2;
+      padding: 10px;
+      background: #e3f2fd;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      background: white;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    thead {
+      background-color: #007bff;
+      color: white;
+    }
+
+    th {
+      padding: 12px;
+      text-align: left;
+      font-weight: bold;
+      border-bottom: 2px solid #0056b3;
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    tbody tr:hover {
+      background-color: #f5f5f5;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .info-text {
+      color: #666;
+      font-size: 13px;
+      margin-top: 5px;
+      font-style: italic;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>View Composer - Entity Search Demo</h1>
+    <p>Select an entity type (root field) to search and view data.</p>
+
+    <!-- Entity Type Selection Section -->
+    <div class="section">
+      <h2>1️⃣ Select Entity Type</h2>
+      <p class="info-text">Choose an entity type (root field) to work with.</p>
+      <div class="form-group">
+        <label for="entity-type-select">Entity Type:</label>
+        <select id="entity-type-select" onchange="handleEntityTypeChange()">
+          <option value="">-- Select Entity Type --</option>
+        </select>
+      </div>
+      <div id="entity-type-status"></div>
+    </div>
+
+    <!-- Search Section -->
+    <div class="section" id="search-section" style="display: none;">
+      <h2>2️⃣ Search Entities</h2>
+      <p class="info-text">Use the search fields below to filter entities. Leave empty to get all entities.</p>
+      <div id="search-fields-container"></div>
+      <button onclick="performSearch()">Search</button>
+      <button onclick="clearSearch()">Clear</button>
+      <div id="search-status"></div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="section" id="results-section" style="display: none;">
+      <h2>3️⃣ Results</h2>
+      <div id="results-container"></div>
+    </div>
+  </div>
+  <script>
+    window.onload = function () {
+      // Check if ZodToMongoQuery is loaded
+      if (typeof ZodToMongoQuery === 'undefined') {
+        console.error('ZodToMongoQuery is not loaded! Check the script tag.');
+        alert('Error: ZodToMongoQuery bundle failed to load. Please check the console for details.');
+        return;
+      }
+
+      console.log('ZodToMongoQuery loaded:', ZodToMongoQuery);
+
+      // Global state
+      if (typeof window.rootFieldMetaData === 'undefined') {
+        window.rootFieldMetaData = [];
+      }
+      if (typeof window.selectedRootField === 'undefined') {
+        window.selectedRootField = null;
+      }
+      if (typeof window.zodSchema === 'undefined') {
+        window.zodSchema = null;
+      }
+      if (typeof window.queryAbilities === 'undefined') {
+        window.queryAbilities = {};
+      }
+      if (typeof window.searchValues === 'undefined') {
+        window.searchValues = {};
+      }
+
+      try {
+        const { getQueryAbilities, convertToMongoQuery, rootFieldToZodSchemaFromString } = ZodToMongoQuery;
+        window.getQueryAbilities = getQueryAbilities;
+        window.convertToMongoQuery = convertToMongoQuery;
+        window.rootFieldToZodSchemaFromString = rootFieldToZodSchemaFromString;
+        const data = window.rootFieldToZodSchemaFromString(JSON.stringify({
+          "_id": "67599f874bf19aa828936c16",
+          "name": "package",
+          "version": 0,
+          "value": {
+            "volume": "2x2x2",
+            "exportId": "67512d0407c9c28f9fabc558",
+            "packageOrderNumber": 8,
+            "packageCustomerId": "674f0a943e36a7a3b79ce55b",
+            "productsPacked": [
+              {
+                "productId": "6753ee9cd95fed4f38de4607",
+                "têNThàNhPhẩM": "Cà pháo Thái 1 kg",
+                "weight": 1000,
+                "unit": "Kg",
+                "price": 11150,
+                "productPackageWeight": 2000,
+                "quantity": "2"
+              },
+              {
+                "productId": "6753ee9cd95fed4f38de4607",
+                "têNThàNhPhẩM": "Cà pháo Thái 1 kg",
+                "weight": 1000,
+                "unit": "Kg",
+                "price": 11150,
+                "productPackageWeight": 2000,
+                "quantity": "2"
+              },
+              {
+                "productId": "6753ee9cd95fed4f38de4607",
+                "têNThàNhPhẩM": "Cà pháo Thái 1 kg",
+                "weight": 1000,
+                "unit": "Kg",
+                "price": 11150,
+                "productPackageWeight": 2000,
+                "quantity": "2"
+              },
+              {
+                "productId": "6753ee9cd95fed4f38de4607",
+                "têNThàNhPhẩM": "Cà pháo Thái 1 kg",
+                "weight": 1000,
+                "unit": "Kg",
+                "price": 11150,
+                "productPackageWeight": 2000,
+                "quantity": "2"
+              },
+              {
+                "productId": "6753ee9cd95fed4f38de460b",
+                "têNThàNhPhẩM": "Ớt đỏ khô 100 gr",
+                "weight": 100,
+                "unit": "Kg",
+                "price": 17040,
+                "productPackageWeight": 200,
+                "quantity": "2"
+              },
+              {
+                "productId": "6753ee9cd95fed4f38de460b",
+                "têNThàNhPhẩM": "Ớt đỏ khô 100 gr",
+                "weight": 100,
+                "unit": "Kg",
+                "price": 17040,
+                "productPackageWeight": 200,
+                "quantity": "2"
+              },
+              {
+                "productId": "6753ee9cd95fed4f38de460b",
+                "têNThàNhPhẩM": "Ớt đỏ khô 100 gr",
+                "weight": 100,
+                "unit": "Kg",
+                "price": 17040,
+                "productPackageWeight": 3300,
+                "quantity": "33"
+              }
+            ],
+            "totalWeight": 11700,
+            "packageId": "mamoi",
+            "volumn": "2x2x2"
+          },
+          "createdAt": "2024-12-11T14:19:51.989Z",
+          "updatedAt": "2025-07-11T08:55:46.584Z"
+        }))
+        console.log(data)
+      } catch (error) {
+        console.error('Error initializing:', error);
+        alert('Error: ' + error.message);
+      }
+    }
+  </script>
+</body>
+
+</html>
