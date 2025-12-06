@@ -3899,6 +3899,7 @@
 
     exports.convertToMongoQuery = convertToMongoQuery;
     exports.getQueryAbilities = getQueryAbilities;
+    exports.rootFieldToZodSchema = rootFieldToZodSchema;
     exports.rootFieldToZodSchemaFromString = rootFieldToZodSchemaFromString;
 
 }));

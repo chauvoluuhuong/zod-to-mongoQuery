@@ -187,41 +187,46 @@
       margin-top: 5px;
       font-style: italic;
     }
+
+    pre {
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      border: 1px solid #ddd;
+      margin: 10px 0;
+    }
   </style>
 </head>
 
 <body>
   <div class="container">
-    <h1>View Composer - Entity Search Demo</h1>
-    <p>Select an entity type (root field) to search and view data.</p>
+    <h1>Zod to MongoQuery - Demo</h1>
+    <p>Displaying root field, converted Zod schema, and query abilities.</p>
 
-    <!-- Entity Type Selection Section -->
+    <!-- Root Field Display Section -->
     <div class="section">
-      <h2>1️⃣ Select Entity Type</h2>
-      <p class="info-text">Choose an entity type (root field) to work with.</p>
-      <div class="form-group">
-        <label for="entity-type-select">Entity Type:</label>
-        <select id="entity-type-select" onchange="handleEntityTypeChange()">
-          <option value="">-- Select Entity Type --</option>
-        </select>
-      </div>
-      <div id="entity-type-status"></div>
+      <h2>1️⃣ Root Field</h2>
+      <p class="info-text">The original root field definition.</p>
+      <pre id="root-field-display"
+        style="background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; max-height: 500px; overflow-y: auto;"></pre>
     </div>
 
-    <!-- Search Section -->
-    <div class="section" id="search-section" style="display: none;">
-      <h2>2️⃣ Search Entities</h2>
-      <p class="info-text">Use the search fields below to filter entities. Leave empty to get all entities.</p>
-      <div id="search-fields-container"></div>
-      <button onclick="performSearch()">Search</button>
-      <button onclick="clearSearch()">Clear</button>
-      <div id="search-status"></div>
+    <!-- Zod Schema Display Section -->
+    <div class="section">
+      <h2>2️⃣ Zod Schema (Converted)</h2>
+      <p class="info-text">The Zod schema converted from the root field.</p>
+      <pre id="zod-schema-display"
+        style="background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; max-height: 500px; overflow-y: auto;"></pre>
     </div>
 
-    <!-- Results Section -->
-    <div class="section" id="results-section" style="display: none;">
-      <h2>3️⃣ Results</h2>
-      <div id="results-container"></div>
+    <!-- Query Abilities Display Section -->
+    <div class="section">
+      <h2>3️⃣ Query Abilities</h2>
+      <p class="info-text">Available query operations for each field.</p>
+      <pre id="query-abilities-display"
+        style="background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; max-height: 500px; overflow-y: auto;"></pre>
     </div>
   </div>
   <script>
@@ -257,7 +262,9 @@
         window.getQueryAbilities = getQueryAbilities;
         window.convertToMongoQuery = convertToMongoQuery;
         window.rootFieldToZodSchemaFromString = rootFieldToZodSchemaFromString;
-        const data = window.rootFieldToZodSchemaFromString(JSON.stringify({
+
+        // Root field data
+        const rootFieldData = {
           "_id": "676a0ef912b4ef67be84ab8d",
           "name": "package",
           "type": "field_group",
@@ -4635,11 +4642,55 @@
               "viewName": "Net weight (kg)"
             }
           }
-        }))
-        console.log(data)
+        };
+
+        // Display Root Field
+        const rootFieldDisplay = document.getElementById('root-field-display');
+        if (rootFieldDisplay) {
+          rootFieldDisplay.textContent = JSON.stringify(rootFieldData, null, 2);
+        }
+
+        // Convert to Zod Schema
+        const zodSchema = window.rootFieldToZodSchemaFromString(JSON.stringify(rootFieldData));
+        window.zodSchema = zodSchema;
+
+        // Display Zod Schema
+        const zodSchemaDisplay = document.getElementById('zod-schema-display');
+        if (zodSchemaDisplay) {
+          // Convert Zod schema to a readable string representation
+          try {
+            zodSchemaDisplay.textContent = zodSchema.toString() || JSON.stringify(zodSchema, null, 2);
+          } catch (e) {
+            zodSchemaDisplay.textContent = JSON.stringify(zodSchema, null, 2);
+          }
+        }
+
+        // Get Query Abilities
+        const queryAbilities = window.getQueryAbilities(zodSchema);
+        window.queryAbilities = queryAbilities;
+
+        // Display Query Abilities
+        const queryAbilitiesDisplay = document.getElementById('query-abilities-display');
+        if (queryAbilitiesDisplay) {
+          queryAbilitiesDisplay.textContent = JSON.stringify(queryAbilities, null, 2);
+        }
+
+        console.log('Root Field:', rootFieldData);
+        console.log('Zod Schema:', zodSchema);
+        console.log('Query Abilities:', queryAbilities);
       } catch (error) {
         console.error('Error initializing:', error);
         alert('Error: ' + error.message);
+
+        // Display error in sections
+        const errorMsg = 'Error: ' + error.message;
+        const rootFieldDisplay = document.getElementById('root-field-display');
+        const zodSchemaDisplay = document.getElementById('zod-schema-display');
+        const queryAbilitiesDisplay = document.getElementById('query-abilities-display');
+
+        if (rootFieldDisplay) rootFieldDisplay.textContent = errorMsg;
+        if (zodSchemaDisplay) zodSchemaDisplay.textContent = errorMsg;
+        if (queryAbilitiesDisplay) queryAbilitiesDisplay.textContent = errorMsg;
       }
     }
   </script>

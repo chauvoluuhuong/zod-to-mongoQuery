@@ -3896,6 +3896,7 @@ var ZodToMongoQuery = (function (exports) {
 
     exports.convertToMongoQuery = convertToMongoQuery;
     exports.getQueryAbilities = getQueryAbilities;
+    exports.rootFieldToZodSchema = rootFieldToZodSchema;
     exports.rootFieldToZodSchemaFromString = rootFieldToZodSchemaFromString;
 
     return exports;

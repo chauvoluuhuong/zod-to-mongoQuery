@@ -196,7 +196,7 @@ export function convertToMongoQuery(
   };
 }
 
-const rootFieldToZodSchema = (
+export const rootFieldToZodSchema = (
   rootField: IFieldDefinition,
   maxLevel = 3
 ): ZodObject => {

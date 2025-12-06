@@ -3891,5 +3891,5 @@ function rootFieldToZodSchemaFromString(rootField) {
     return rootFieldToZodSchema(JSON.parse(rootField));
 }
 
-export { convertToMongoQuery, getQueryAbilities, rootFieldToZodSchemaFromString };
+export { convertToMongoQuery, getQueryAbilities, rootFieldToZodSchema, rootFieldToZodSchemaFromString };
 //# sourceMappingURL=zod-to-mongo-query.esm.js.map
