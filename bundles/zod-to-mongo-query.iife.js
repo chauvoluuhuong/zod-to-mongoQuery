@@ -3631,6 +3631,7 @@ var ZodToMongoQuery = (function (exports) {
         "number[]": ["eq", "ne", "gt", "gte", "lt", "lte", "in", "nin"],
         "boolean[]": ["eq", "ne", "in", "nin"],
         "date[]": ["eq", "ne", "gt", "gte", "lt", "lte", "in", "nin"],
+        "object[]": ["eq", "ne", "in", "nin"],
         array: ["eq", "ne", "in", "nin"],
     };
     const OPERATOR_MAP = {
@@ -3646,8 +3647,20 @@ var ZodToMongoQuery = (function (exports) {
         search: "$regex",
     };
 
+    function unwrapOptionalSchema(schema) {
+        while (schema instanceof ZodOptional ||
+            schema instanceof ZodNullable ||
+            schema instanceof ZodDefault) {
+            schema = schema._def.innerType;
+        }
+        return schema;
+    }
     // extract zod type
     function getZodTypeName(schema) {
+        schema = unwrapOptionalSchema(schema);
+        if (schema instanceof ZodOptional) {
+            return getZodTypeName(unwrapOptionalSchema(schema));
+        }
         if (schema instanceof ZodArray) {
             const elementType = schema.element;
             if (elementType instanceof ZodString)
@@ -3658,6 +3671,8 @@ var ZodToMongoQuery = (function (exports) {
                 return "boolean[]";
             if (elementType instanceof ZodDate)
                 return "date[]";
+            if (elementType instanceof ZodObject)
+                return "object[]";
             return "array";
         }
         if (schema instanceof ZodString)
@@ -3673,7 +3688,7 @@ var ZodToMongoQuery = (function (exports) {
         return "unknown";
     }
     function getQueryAbilities(schema, maxDepth = Infinity, parentKey = "", currentDepth = 0) {
-        var _a;
+        var _a, _b, _c;
         const shape = schema.shape;
         const result = {};
         if (currentDepth >= maxDepth)
@@ -3687,10 +3702,26 @@ var ZodToMongoQuery = (function (exports) {
                 Object.assign(result, getQueryAbilities(fieldSchema, maxDepth, fullKey, currentDepth + 1));
                 continue;
             }
+            // Array of objects case
+            if (typeName === "object[]") {
+                const unwrappedSchema = unwrapOptionalSchema(fieldSchema);
+                if (unwrappedSchema instanceof ZodArray) {
+                    const elementType = unwrappedSchema.element;
+                    if (elementType instanceof ZodObject) {
+                        Object.assign(result, getQueryAbilities(elementType, maxDepth, fullKey, currentDepth + 1));
+                    }
+                }
+                // Also add the array field itself with array operators
+                result[fullKey] = {
+                    type: typeName,
+                    supportedOperators: (_b = (_a = OPERATORS[typeName]) !== null && _a !== void 0 ? _a : OPERATORS["array"]) !== null && _b !== void 0 ? _b : ["eq"],
+                };
+                continue;
+            }
             // Primitive field
             result[fullKey] = {
                 type: typeName,
-                supportedOperators: (_a = OPERATORS[typeName]) !== null && _a !== void 0 ? _a : ["eq"],
+                supportedOperators: (_c = OPERATORS[typeName]) !== null && _c !== void 0 ? _c : ["eq"],
             };
         }
         return result;
@@ -3775,7 +3806,7 @@ var ZodToMongoQuery = (function (exports) {
         var _a;
         const zodSchema = {};
         if (!rootField.fields || maxLevel <= 0) {
-            return zodSchema;
+            return object(zodSchema);
         }
         const convertFieldToZod = (field, currentLevel) => {
             var _a, _b, _c, _d;
@@ -3857,7 +3888,7 @@ var ZodToMongoQuery = (function (exports) {
             const fieldName = ((_a = subField.populateData) === null || _a === void 0 ? void 0 : _a.path) || subField.name;
             zodSchema[fieldName] = convertFieldToZod(subField, maxLevel);
         }
-        return zodSchema;
+        return object(zodSchema);
     };
     function rootFieldToZodSchemaFromString(rootField) {
         return rootFieldToZodSchema(JSON.parse(rootField));
