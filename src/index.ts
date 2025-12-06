@@ -7,17 +7,36 @@ import {
   ZodBoolean,
   ZodDate,
   ZodArray,
+  ZodOptional,
+  ZodNullable,
+  ZodDefault,
 } from "zod";
 import { QueryAbilities, OPERATORS, OPERATOR_MAP } from "./types";
 import { IFieldDefinition, FieldTypeEnum } from "./types";
+
+function unwrapOptionalSchema(schema: ZodTypeAny): ZodTypeAny {
+  while (
+    schema instanceof ZodOptional ||
+    schema instanceof ZodNullable ||
+    schema instanceof ZodDefault
+  ) {
+    schema = schema._def.innerType as ZodTypeAny;
+  }
+  return schema;
+}
 // extract zod type
 function getZodTypeName(schema: ZodTypeAny): string {
+  schema = unwrapOptionalSchema(schema);
+  if (schema instanceof ZodOptional) {
+    return getZodTypeName(unwrapOptionalSchema(schema));
+  }
   if (schema instanceof ZodArray) {
     const elementType = schema.element;
     if (elementType instanceof ZodString) return "string[]";
     if (elementType instanceof ZodNumber) return "number[]";
     if (elementType instanceof ZodBoolean) return "boolean[]";
     if (elementType instanceof ZodDate) return "date[]";
+    if (elementType instanceof ZodObject) return "object[]";
     return "array";
   }
   if (schema instanceof ZodString) return "string";
@@ -52,6 +71,26 @@ export function getQueryAbilities(
         result,
         getQueryAbilities(fieldSchema, maxDepth, fullKey, currentDepth + 1)
       );
+      continue;
+    }
+
+    // Array of objects case
+    if (typeName === "object[]") {
+      const unwrappedSchema = unwrapOptionalSchema(fieldSchema);
+      if (unwrappedSchema instanceof ZodArray) {
+        const elementType = unwrappedSchema.element;
+        if (elementType instanceof ZodObject) {
+          Object.assign(
+            result,
+            getQueryAbilities(elementType, maxDepth, fullKey, currentDepth + 1)
+          );
+        }
+      }
+      // Also add the array field itself with array operators
+      result[fullKey] = {
+        type: typeName,
+        supportedOperators: OPERATORS[typeName] ?? OPERATORS["array"] ?? ["eq"],
+      };
       continue;
     }
 
@@ -157,11 +196,13 @@ export function convertToMongoQuery(
   };
 }
 
-const rootFieldToZodSchema = (rootField: IFieldDefinition, maxLevel = 3) => {
+const rootFieldToZodSchema = (
+  rootField: IFieldDefinition,
+  maxLevel = 3
+): ZodObject => {
   const zodSchema: Record<string, z.ZodTypeAny> = {};
-  console.log("rootField.fields", rootField);
   if (!rootField.fields || maxLevel <= 0) {
-    return zodSchema;
+    return z.object(zodSchema);
   }
 
   const convertFieldToZod = (
@@ -261,9 +302,9 @@ const rootFieldToZodSchema = (rootField: IFieldDefinition, maxLevel = 3) => {
     zodSchema[fieldName] = convertFieldToZod(subField, maxLevel);
   }
 
-  return zodSchema;
+  return z.object(zodSchema);
 };
 
-export function rootFieldToZodSchemaFromString(rootField: string) {
+export function rootFieldToZodSchemaFromString(rootField: string): ZodObject {
   return rootFieldToZodSchema(JSON.parse(rootField));
 }

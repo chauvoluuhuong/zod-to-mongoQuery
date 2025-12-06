@@ -1,0 +1,4379 @@
+{
+  "_id": "676a0ef912b4ef67be84ab8d",
+  "name": "package",
+  "type": "field_group",
+  "version": 0,
+  "childFieldIds": [
+    "676a0ef912b4ef67be84ab8e",
+    "676a0ef912b4ef67be84ab8f",
+    "676a0ef912b4ef67be84ab90",
+    "676a0ef912b4ef67be84ab91",
+    "676a0ef912b4ef67be84ab92",
+    "676a0ef912b4ef67be84ab93",
+    "676a0ef912b4ef67be84ab94",
+    "676a0ef912b4ef67be84ab95"
+  ],
+  "createdAt": "2024-12-24T01:31:37.087Z",
+  "fields": [
+    {
+      "_id": "676a0ef912b4ef67be84ab8e",
+      "name": "packageId",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab8d",
+      "version": 0,
+      "childFieldIds": null,
+      "computation": {
+        "computedValueType": "string",
+        "computationHandler": "computePackageId",
+        "dependencies": [
+          {
+            "absoluteFieldPath": "packageOrderNumber"
+          },
+          {
+            "absoluteFieldPath": "packageCustomerId"
+          }
+        ],
+        "content": "(async (\n    entityValue, //  the current entity to compute\n    currentValue, // the current value of the field\n    api // the API object to use for do api calls\n  )=> { \n    try {\n  const customerId = entityValue[\"packageCustomerId\"];\n  const exportId = entityValue[\"exportId\"];\n\n  if (!customerId) {\n    console.log(\"Customer not found for id: \", customerId);\n    return null;\n  }\n  let res = await api.get(`generic-entities/${customerId}`);\n  if (!res.data) {\n    console.log(\"Customer not found for id: \", customerId);\n    return null;\n  }\n  const customer = res.data;\n  console.log(\"customer: \", customer);\n  let packageNumber = 0;\n  res = await api.get(`generic-entities`, {\n    params: {\n      searchFields: {\n        [\"value.packageCustomerId\"]: customerId,\n        \"value.exportId\": exportId ? exportId : \"\",\n        name: \"package\",\n      },\n    },\n  });\n  if (!res) {\n    return null;\n  }\n\n  for (const d of res?.data?.data || []) {\n    if (d.value[\"packageOrderNumber\"] > packageNumber) {\n      packageNumber = d.value[\"packageOrderNumber\"];\n    }\n  }\n\n  return `${customer?.value[\"customerName\"]}_${packageNumber + 1}`;\n    } catch(e) {\n      console.log(e)\n    }\n  })(entityValue, currentValue, api);"
+      },
+      "createdAt": "2024-12-24T01:31:37.127Z",
+      "fields": [],
+      "populateData": {
+        "path": "packageId",
+        "reference": null,
+        "absolutePath": "packageId"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "COMPUTATION",
+      "unique": false,
+      "updatedAt": "2025-09-03T17:05:26.030Z",
+      "viewName": "Package Code"
+    },
+    {
+      "_id": "676a0ef912b4ef67be84ab8f",
+      "name": "packageOrderNumber",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab8d",
+      "version": 0,
+      "childFieldIds": null,
+      "computation": {
+        "computedValueType": "number",
+        "dependencies": [
+          {
+            "absoluteFieldPath": "exportId"
+          },
+          {
+            "absoluteFieldPath": "packageCustomerId"
+          }
+        ],
+        "computationHandler": "computePackageOrderNumber",
+        "defaultValue": 1,
+        "content": "\n(async (\n    entityValue, //  the current entity to compute\n    currentValue, // the current value of the field\n    api // the API object to use for do api calls\n  )=> { \n\n    const exportId = entityValue['exportId'];\n    const customerId = entityValue['packageCustomerId'];\n    console.log(\"exportId: \", exportId, \"customerId: \", customerId);\n\n    if (!exportId) {\n      return 1;\n    }\n    let res;\n\n    res = await api.get(\"generic-entities\", {\n      params: {\n        searchFields: {\n          [`value.exportId`]: exportId,\n          [`value.packageCustomerId`]: customerId,\n          name: \"package\",\n        },\n      },\n    });\n    const packages = res?.data;\n    if (!packages) {\n      console.log(\"can't find packages for exportId: \", exportId);\n      return null;\n    }\n\n    let maxValue = 0;\n    for (const _package of packages.data) {\n      if (_package.value[\"packageOrderNumber\"] > maxValue) {\n        maxValue = _package.value[\"packageOrderNumber\"];\n      }\n    }\n\n    return maxValue + 1;\n    \n  })(entityValue, currentValue, api);"
+      },
+      "createdAt": "2024-12-24T01:31:37.165Z",
+      "fields": [],
+      "populateData": {
+        "path": "packageOrderNumber",
+        "reference": null,
+        "absolutePath": "packageOrderNumber"
+      },
+      "readOnly": true,
+      "required": false,
+      "systemField": true,
+      "type": "COMPUTATION",
+      "unique": false,
+      "updatedAt": "2025-07-21T01:53:30.759Z",
+      "viewName": "Package Order Number"
+    },
+    {
+      "_id": "676a0ef912b4ef67be84ab90",
+      "name": "totalWeight",
+      "version": 0,
+      "viewName": "Package Gross Weight (kg)",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab8d",
+      "type": "COMPUTATION",
+      "required": false,
+      "populateData": {
+        "path": "totalWeight",
+        "absolutePath": "totalWeight"
+      },
+      "computation": {
+        "computedValueType": "number",
+        "dependencies": [
+          {
+            "absoluteFieldPath": "productsPacked"
+          }
+        ],
+        "computationHandler": "computeTotalWeight",
+        "content": "\n(async (\n    entityValue, //  the current value of the entity to compute\n    currentValue, // the current value of the field\n    api // the API object to do api calls\n  )=> { \n    \n    const productsPacked =\n      entityValue['productsPacked'];\n    console.log(\"productsPacked: \", productsPacked);\n    if (!productsPacked) {\n      return null;\n    }\n    let weight = 0;\n    for (let i = 0; i < productsPacked.length; i++) {\n\n      const weightValue = parseFloat(\n        entityValue['productsPacked'][i]['productPackageWeight']\n      );\n      if (!isNaN(weightValue)) {\n        weight += weightValue;\n      }\n    }\n\n    return weight;\n  })(entityValue, currentValue, api);"
+      },
+      "readOnly": true,
+      "fields": [],
+      "systemField": true,
+      "unique": false,
+      "childFieldIds": null,
+      "createdAt": "2024-12-27T23:26:32.427Z",
+      "updatedAt": "2025-07-21T01:53:48.133Z",
+      "validation": {
+        "disabled": true
+      }
+    },
+    {
+      "_id": "676a0ef912b4ef67be84ab91",
+      "name": "volume",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab8d",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:37.246Z",
+      "fields": [],
+      "populateData": {
+        "path": "volume",
+        "reference": null,
+        "absolutePath": "volume"
+      },
+      "readOnly": false,
+      "required": true,
+      "systemField": true,
+      "type": "string",
+      "unique": false,
+      "updatedAt": "2025-07-21T01:54:07.608Z",
+      "viewName": "Package Gross Volume "
+    },
+    {
+      "_id": "676a0ef912b4ef67be84ab92",
+      "name": "soDaGel",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab8d",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:37.284Z",
+      "fields": [],
+      "populateData": {
+        "path": "soDaGel",
+        "reference": null,
+        "absolutePath": "soDaGel"
+      },
+      "readOnly": false,
+      "required": true,
+      "systemField": true,
+      "type": "string",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:32.484Z",
+      "viewName": "Số đá gel"
+    },
+    {
+      "_id": "676a0ef912b4ef67be84ab93",
+      "name": "exportId",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab8d",
+      "version": 0,
+      "buildLabelAutocompleteHandler": "customDisplayLabelForExport",
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:37.322Z",
+      "fields": [],
+      "populateData": {
+        "path": "exportId",
+        "reference": {
+          "entityName": "export",
+          "path": null,
+          "version": 0
+        },
+        "absolutePath": "exportId",
+        "referencePopulated": {
+          "_id": "676a0ef812b4ef67be84ab7d",
+          "parentFieldDefinitionId": null,
+          "name": "export",
+          "version": 0,
+          "type": "field_group",
+          "childFieldIds": [
+            "676a0ef812b4ef67be84ab7e"
+          ],
+          "createdAt": "2024-12-24T01:31:36.346Z",
+          "fields": [
+            {
+              "_id": "676a0ef812b4ef67be84ab7e",
+              "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7d",
+              "name": "exportCode",
+              "version": 0,
+              "type": "string",
+              "buildLabelAutocompleteHandler": null,
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:36.386Z",
+              "fields": [],
+              "populateData": {
+                "path": "exportCode",
+                "reference": null,
+                "absolutePath": "exportId.type:reference.exportCode"
+              },
+              "readOnly": false,
+              "required": true,
+              "systemField": true,
+              "unique": false,
+              "updatedAt": "2025-07-21T01:52:54.556Z",
+              "validation": {
+                "messageOnFailure": "Mã xuất cảng không được trùng ",
+                "handler": "validExportCodeAvailable",
+                "content": "\n(async (\n    entityValue, //  the current entity to validate \n    currentValue, // the current value of the field\n    api // the API object to use for do api calls\n  )=> {\n    //  true if the value is valid, false if the value is not valid\n    if (!currentValue) {\n      return true;\n    }\n    const res = await api.get('generic-entities/resource-availability',   {\n        params: {\n          searchFields: {\n            [`value.exportCode`]: currentValue,\n          },\n        } \n      })\n    console.log('is resouce available: ', res)  \n    return res?.data ? false : true\n  })(entityValue, currentValue, api)\n"
+              },
+              "viewName": "Export Code",
+              "computation": {
+                "disabled": true
+              }
+            }
+          ],
+          "populateData": {
+            "path": "export",
+            "reference": null
+          },
+          "readOnly": false,
+          "relationsDisplayed": [
+            {
+              "relateToEntityName": "order",
+              "relateToEntityVersion": 0,
+              "relationType": "one_to_many",
+              "position": "list_generic_entity",
+              "displayed": true,
+              "title": "Danh sách đơn hàng",
+              "relatedField": "order_exportCode"
+            },
+            {
+              "relateToEntityName": "package",
+              "relateToEntityVersion": 0,
+              "relationType": "one_to_many",
+              "position": "list_generic_entity",
+              "displayed": true,
+              "title": "Danh sách đóng thùng",
+              "relatedField": "exportId"
+            }
+          ],
+          "required": false,
+          "systemField": true,
+          "unique": false,
+          "updatedAt": "2025-07-21T01:52:40.090Z",
+          "viewName": "Export",
+          "validation": {
+            "content": "\n(async (\n    entity, //  the current entity to validate \n    currentValue, // the current value of the field\n    api // the API object to use for do api calls\n  )=> {\n    //  true if the value is valid, false if the value is not valid\n    const res = api.get('generic-entities/resource-availability')\n    console.log(\"is resource avalable: \", res)\n    return res ? false : true;\n  })(entity, currentValue, api)\n",
+            "disabled": true
+          }
+        }
+      },
+      "readOnly": false,
+      "required": true,
+      "systemField": true,
+      "type": "reference",
+      "unique": false,
+      "updatedAt": "2025-07-21T01:54:23.284Z",
+      "viewName": "Export"
+    },
+    {
+      "_id": "676a0ef912b4ef67be84ab94",
+      "name": "packageCustomerId",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab8d",
+      "version": 0,
+      "buildLabelAutocompleteHandler": "customDisplayLabelForCustomer",
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:37.359Z",
+      "fields": [],
+      "populateData": {
+        "path": "packageCustomerId",
+        "reference": {
+          "entityName": "customer",
+          "path": null,
+          "version": 0
+        },
+        "absolutePath": "packageCustomerId",
+        "referencePopulated": {
+          "_id": "676a0ef812b4ef67be84ab7f",
+          "name": "customer",
+          "parentFieldDefinitionId": null,
+          "version": 0,
+          "childFieldIds": [
+            "676a0ef812b4ef67be84ab80",
+            "676a0ef812b4ef67be84ab81",
+            "676a0ef812b4ef67be84ab82",
+            "676a0ef812b4ef67be84ab83"
+          ],
+          "createdAt": "2024-12-24T01:31:36.466Z",
+          "fields": [
+            {
+              "_id": "676a0ef812b4ef67be84ab80",
+              "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7f",
+              "name": "email",
+              "version": 0,
+              "type": "string",
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:36.505Z",
+              "fields": [],
+              "populateData": {
+                "path": "email",
+                "reference": null,
+                "absolutePath": "packageCustomerId.type:reference.email"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:31.892Z",
+              "viewName": "Email"
+            },
+            {
+              "_id": "676a0ef812b4ef67be84ab81",
+              "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7f",
+              "name": "customerCode",
+              "version": 0,
+              "type": "string",
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:36.542Z",
+              "fields": [],
+              "populateData": {
+                "path": "customerCode",
+                "reference": null,
+                "absolutePath": "packageCustomerId.type:reference.customerCode"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "unique": false,
+              "updatedAt": "2025-07-21T01:55:07.354Z",
+              "viewName": "Customer Code"
+            },
+            {
+              "_id": "676a0ef812b4ef67be84ab82",
+              "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7f",
+              "name": "customerName",
+              "version": 0,
+              "type": "string",
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:36.580Z",
+              "fields": [],
+              "populateData": {
+                "path": "customerName",
+                "reference": null,
+                "absolutePath": "packageCustomerId.type:reference.customerName"
+              },
+              "readOnly": false,
+              "required": true,
+              "systemField": true,
+              "unique": false,
+              "updatedAt": "2025-08-03T07:52:42.124Z",
+              "viewName": "Customer Name"
+            },
+            {
+              "_id": "676a0ef812b4ef67be84ab83",
+              "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7f",
+              "name": "address",
+              "version": 0,
+              "type": "string",
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:36.620Z",
+              "fields": [],
+              "populateData": {
+                "path": "address",
+                "reference": null,
+                "absolutePath": "packageCustomerId.type:reference.address"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "unique": false,
+              "updatedAt": "2025-08-02T09:31:13.771Z",
+              "viewName": "Address"
+            }
+          ],
+          "readOnly": false,
+          "required": true,
+          "systemField": true,
+          "type": "field_group",
+          "unique": false,
+          "updatedAt": "2025-07-31T04:00:51.755Z",
+          "viewName": "Customer"
+        }
+      },
+      "readOnly": false,
+      "required": true,
+      "systemField": true,
+      "type": "reference",
+      "unique": false,
+      "updatedAt": "2025-07-21T01:54:32.105Z",
+      "viewName": "Customer"
+    },
+    {
+      "_id": "676a0ef912b4ef67be84ab95",
+      "name": "productsPacked",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab8d",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:37.397Z",
+      "fields": [],
+      "populateData": {
+        "path": "productsPacked",
+        "reference": {
+          "entityName": "product-packaged-entity",
+          "path": null,
+          "version": 0
+        },
+        "absolutePath": "productsPacked",
+        "referencePopulated": {
+          "_id": "676a0ef912b4ef67be84ab96",
+          "name": "product-packaged-entity",
+          "type": "field_group",
+          "version": 0,
+          "childFieldIds": [
+            "676a0ef912b4ef67be84ab97",
+            "676a0ef912b4ef67be84ab98",
+            "676a0ef912b4ef67be84ab99",
+            "676a0ef912b4ef67be84ab9a",
+            "676a0ef912b4ef67be84ab9b",
+            "676a0ef912b4ef67be84ab9c",
+            "676a0ef912b4ef67be84ab9d"
+          ],
+          "createdAt": "2024-12-24T01:31:37.478Z",
+          "fields": [
+            {
+              "_id": "676a0ef912b4ef67be84ab97",
+              "name": "productId",
+              "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+              "version": 0,
+              "buildLabelAutocompleteHandler": "customDisplayLabelForProduct",
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:37.516Z",
+              "fields": [],
+              "populateData": {
+                "path": "productId",
+                "reference": {
+                  "entityName": "product",
+                  "path": null,
+                  "version": 0
+                },
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId",
+                "referencePopulated": {
+                  "_id": "676a0ef712b4ef67be84ab66",
+                  "name": "product",
+                  "parentFieldDefinitionId": null,
+                  "version": 0,
+                  "childFieldIds": [
+                    "676a0ef712b4ef67be84ab67",
+                    "676a0ef712b4ef67be84ab68",
+                    "676a0ef712b4ef67be84ab69",
+                    "676a0ef712b4ef67be84ab6a",
+                    "676a0ef712b4ef67be84ab6b",
+                    "676a0ef712b4ef67be84ab6c",
+                    "676a0ef712b4ef67be84ab6d",
+                    "676a0ef712b4ef67be84ab6e",
+                    "676a0ef712b4ef67be84ab6f",
+                    "676a0ef712b4ef67be84ab70",
+                    "676a0ef712b4ef67be84ab71",
+                    "676a0ef712b4ef67be84ab72",
+                    "676a0ef712b4ef67be84ab73",
+                    "676a0ef712b4ef67be84ab74",
+                    "676a0ef712b4ef67be84ab75",
+                    "676a0ef712b4ef67be84ab76",
+                    "676a0ef812b4ef67be84ab77"
+                  ],
+                  "createdAt": "2024-12-24T01:31:35.101Z",
+                  "fields": [
+                    {
+                      "_id": "676a0ef712b4ef67be84ab67",
+                      "name": "barCodeEAN13",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.313Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "barCodeEAN13",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.barCodeEAN13"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:30.984Z",
+                      "viewName": "Bar code EAN13"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab68",
+                      "name": "barCode",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.356Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "barCode",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.barCode"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2025-11-02T08:42:17.582Z",
+                      "viewName": "Bar code 2",
+                      "useVectorSearch": false
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab69",
+                      "name": "art.Nr",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.395Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "art.Nr",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.art.Nr"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.041Z",
+                      "viewName": "Art.Nr"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab6a",
+                      "name": "gGN",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.442Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "gGN",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.gGN"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.070Z",
+                      "viewName": "GGN"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab6b",
+                      "name": "mãĐốITượNg",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.488Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "mãĐốITượNg",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.mãĐốITượNg"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.099Z",
+                      "viewName": "Mã Đối tượng"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab6c",
+                      "name": "têNThàNhPhẩM",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.531Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "têNThàNhPhẩM",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNThàNhPhẩM"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.128Z",
+                      "viewName": "Tên thành phẩm"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab6d",
+                      "name": "unit",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.573Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "unit",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.unit"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.157Z",
+                      "viewName": "unit"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab6e",
+                      "name": "têNTiếNgAnh",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.614Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "têNTiếNgAnh",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNTiếNgAnh"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.187Z",
+                      "viewName": "Tên tiếng anh"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab6f",
+                      "name": "têNTiếNg",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.655Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "têNTiếNg",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNTiếNg"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.215Z",
+                      "viewName": "Tên tiếng"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab70",
+                      "name": "sKU",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.695Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "sKU",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.sKU"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.244Z",
+                      "viewName": "SKU"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab71",
+                      "name": "name",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.735Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "name",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.name"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.273Z",
+                      "viewName": "Tên sản phẩm"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab72",
+                      "name": "weight",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.775Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "weight",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.weight"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "number",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.371Z",
+                      "viewName": "Cân nặng"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab73",
+                      "name": "price",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.815Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "price",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.price"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "number",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.400Z",
+                      "viewName": "Giá"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab74",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "name": "botanicalName",
+                      "version": 0,
+                      "type": "string",
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.858Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "botanicalName",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.botanicalName"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.428Z",
+                      "viewName": "Botanical name"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab75",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "name": "giáCNF(CHF/Kg)",
+                      "version": 0,
+                      "type": "string",
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.898Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "giáCNF(CHF/Kg)",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.giáCNF(CHF/Kg)"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.456Z",
+                      "viewName": "Giá CNF (CHF/Kg)"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab76",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "name": "packing2",
+                      "version": 0,
+                      "type": "string",
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.939Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "packing2",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.packing2"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.485Z",
+                      "viewName": "Packing2"
+                    },
+                    {
+                      "_id": "676a0ef812b4ef67be84ab77",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "name": "pLU",
+                      "version": 0,
+                      "type": "string",
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.983Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "pLU",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.pLU"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.513Z",
+                      "viewName": "PLU"
+                    }
+                  ],
+                  "readOnly": false,
+                  "required": true,
+                  "systemField": true,
+                  "type": "field_group",
+                  "unique": true,
+                  "updatedAt": "2025-09-02T08:36:24.342Z"
+                }
+              },
+              "readOnly": false,
+              "required": true,
+              "systemField": true,
+              "type": "reference",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:32.655Z",
+              "viewName": "Mã sảng phẩm"
+            },
+            {
+              "_id": "676a0ef912b4ef67be84ab98",
+              "name": "têNThàNhPhẩM",
+              "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+              "version": 0,
+              "childFieldIds": null,
+              "computation": {
+                "computedValueType": "string",
+                "computationHandler": "computeProductName",
+                "dependencies": [
+                  {
+                    "absoluteFieldPath": "productId"
+                  }
+                ]
+              },
+              "createdAt": "2024-12-24T01:31:37.551Z",
+              "fields": [],
+              "populateData": {
+                "path": "têNThàNhPhẩM",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.têNThàNhPhẩM"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "COMPUTATION",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:32.683Z",
+              "viewName": "Tên thành phẩm"
+            },
+            {
+              "_id": "676a0ef912b4ef67be84ab99",
+              "name": "weight",
+              "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+              "version": 0,
+              "childFieldIds": null,
+              "computation": {
+                "computedValueType": "number",
+                "computationHandler": "populateWeight",
+                "dependencies": [
+                  {
+                    "absoluteFieldPath": "productId"
+                  }
+                ]
+              },
+              "createdAt": "2024-12-24T01:31:37.588Z",
+              "fields": [],
+              "populateData": {
+                "path": "weight",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.weight"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "COMPUTATION",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:32.711Z",
+              "viewName": "Cân nặng"
+            },
+            {
+              "_id": "676a0ef912b4ef67be84ab9a",
+              "name": "quantity",
+              "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+              "version": 0,
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:37.625Z",
+              "fields": [],
+              "populateData": {
+                "path": "quantity",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.quantity"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "number",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:32.738Z",
+              "viewName": "Số lượng"
+            },
+            {
+              "_id": "676a0ef912b4ef67be84ab9b",
+              "name": "unit",
+              "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+              "version": 0,
+              "childFieldIds": null,
+              "computation": {
+                "computedValueType": "string",
+                "computationHandler": "computeUnit",
+                "dependencies": [
+                  {
+                    "absoluteFieldPath": "productId"
+                  }
+                ]
+              },
+              "createdAt": "2024-12-24T01:31:37.664Z",
+              "fields": [],
+              "populateData": {
+                "path": "unit",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.unit"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "COMPUTATION",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:32.766Z",
+              "viewName": "unit"
+            },
+            {
+              "_id": "676a0ef912b4ef67be84ab9c",
+              "name": "price",
+              "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+              "version": 0,
+              "childFieldIds": null,
+              "computation": {
+                "computedValueType": "number",
+                "defaultValue": 0,
+                "computationHandler": "computePrice",
+                "dependencies": [
+                  {
+                    "absoluteFieldPath": "productId"
+                  }
+                ]
+              },
+              "createdAt": "2024-12-24T01:31:37.705Z",
+              "fields": [],
+              "populateData": {
+                "path": "price",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.price"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "COMPUTATION",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:32.794Z",
+              "viewName": "Giá"
+            },
+            {
+              "_id": "676a0ef912b4ef67be84ab9d",
+              "name": "productPackageWeight",
+              "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+              "version": 0,
+              "childFieldIds": null,
+              "computation": {
+                "computedValueType": "number",
+                "dependencies": [
+                  {
+                    "absoluteFieldPath": "quantity"
+                  },
+                  {
+                    "absoluteFieldPath": "productId"
+                  },
+                  {
+                    "absoluteFieldPath": "weight"
+                  },
+                  {
+                    "absoluteFieldPath": "unit"
+                  }
+                ],
+                "computationHandler": "computeNetWeight",
+                "defaultValue": 0,
+                "content": "\n(async (\n    entityValue, //  the current value of the entity to compute\n    currentValue, // the current value of the field\n    api // the API object to do api calls\n  )=> { \n  const quantity = parseFloat(entityValue.quantity);\n  const productId = entityValue.productId;\n\n  if (!productId || isNaN(quantity)) {\n    return 0;\n  }\n  const res = await api?.get(`generic-entities/${productId}`);\n  const product = res?.data;\n  let weight = parseFloat(product.value?.weight);\n  if (isNaN(weight)) {\n    return 0;\n  }\n\n  return weight * quantity;\n  })(entityValue, currentValue, api);"
+              },
+              "createdAt": "2024-12-24T01:31:37.743Z",
+              "fields": [],
+              "populateData": {
+                "path": "productPackageWeight",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productPackageWeight"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "COMPUTATION",
+              "unique": false,
+              "updatedAt": "2025-09-03T16:54:38.546Z",
+              "viewName": "Net weight (kg)"
+            }
+          ],
+          "populateData": {
+            "path": "product-Packaged-Entity",
+            "reference": null
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "unique": false,
+          "updatedAt": "2025-06-20T00:10:06.562Z",
+          "viewName": "product-packaged-entity",
+          "hidden": true
+        }
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "array_of_embedded_documents",
+      "unique": false,
+      "updatedAt": "2025-07-21T01:54:51.784Z",
+      "viewName": "Products Packed"
+    }
+  ],
+  "populateData": {
+    "path": "package",
+    "reference": null
+  },
+  "readOnly": false,
+  "required": false,
+  "systemField": true,
+  "unique": false,
+  "updatedAt": "2025-07-14T22:47:27.148Z",
+  "viewName": "Package",
+  "hidden": false,
+  "id": "676a0ef912b4ef67be84ab8d",
+  "fieldsFlatten": {
+    "fields.0": {
+      "_id": "676a0ef912b4ef67be84ab8e",
+      "name": "packageId",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab8d",
+      "version": 0,
+      "childFieldIds": null,
+      "computation": {
+        "computedValueType": "string",
+        "computationHandler": "computePackageId",
+        "dependencies": [
+          {
+            "absoluteFieldPath": "packageOrderNumber"
+          },
+          {
+            "absoluteFieldPath": "packageCustomerId"
+          }
+        ],
+        "content": "(async (\n    entityValue, //  the current entity to compute\n    currentValue, // the current value of the field\n    api // the API object to use for do api calls\n  )=> { \n    try {\n  const customerId = entityValue[\"packageCustomerId\"];\n  const exportId = entityValue[\"exportId\"];\n\n  if (!customerId) {\n    console.log(\"Customer not found for id: \", customerId);\n    return null;\n  }\n  let res = await api.get(`generic-entities/${customerId}`);\n  if (!res.data) {\n    console.log(\"Customer not found for id: \", customerId);\n    return null;\n  }\n  const customer = res.data;\n  console.log(\"customer: \", customer);\n  let packageNumber = 0;\n  res = await api.get(`generic-entities`, {\n    params: {\n      searchFields: {\n        [\"value.packageCustomerId\"]: customerId,\n        \"value.exportId\": exportId ? exportId : \"\",\n        name: \"package\",\n      },\n    },\n  });\n  if (!res) {\n    return null;\n  }\n\n  for (const d of res?.data?.data || []) {\n    if (d.value[\"packageOrderNumber\"] > packageNumber) {\n      packageNumber = d.value[\"packageOrderNumber\"];\n    }\n  }\n\n  return `${customer?.value[\"customerName\"]}_${packageNumber + 1}`;\n    } catch(e) {\n      console.log(e)\n    }\n  })(entityValue, currentValue, api);"
+      },
+      "createdAt": "2024-12-24T01:31:37.127Z",
+      "fields": [],
+      "populateData": {
+        "path": "packageId",
+        "reference": null,
+        "absolutePath": "packageId"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "COMPUTATION",
+      "unique": false,
+      "updatedAt": "2025-09-03T17:05:26.030Z",
+      "viewName": "Package Code"
+    },
+    "fields.1": {
+      "_id": "676a0ef912b4ef67be84ab8f",
+      "name": "packageOrderNumber",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab8d",
+      "version": 0,
+      "childFieldIds": null,
+      "computation": {
+        "computedValueType": "number",
+        "dependencies": [
+          {
+            "absoluteFieldPath": "exportId"
+          },
+          {
+            "absoluteFieldPath": "packageCustomerId"
+          }
+        ],
+        "computationHandler": "computePackageOrderNumber",
+        "defaultValue": 1,
+        "content": "\n(async (\n    entityValue, //  the current entity to compute\n    currentValue, // the current value of the field\n    api // the API object to use for do api calls\n  )=> { \n\n    const exportId = entityValue['exportId'];\n    const customerId = entityValue['packageCustomerId'];\n    console.log(\"exportId: \", exportId, \"customerId: \", customerId);\n\n    if (!exportId) {\n      return 1;\n    }\n    let res;\n\n    res = await api.get(\"generic-entities\", {\n      params: {\n        searchFields: {\n          [`value.exportId`]: exportId,\n          [`value.packageCustomerId`]: customerId,\n          name: \"package\",\n        },\n      },\n    });\n    const packages = res?.data;\n    if (!packages) {\n      console.log(\"can't find packages for exportId: \", exportId);\n      return null;\n    }\n\n    let maxValue = 0;\n    for (const _package of packages.data) {\n      if (_package.value[\"packageOrderNumber\"] > maxValue) {\n        maxValue = _package.value[\"packageOrderNumber\"];\n      }\n    }\n\n    return maxValue + 1;\n    \n  })(entityValue, currentValue, api);"
+      },
+      "createdAt": "2024-12-24T01:31:37.165Z",
+      "fields": [],
+      "populateData": {
+        "path": "packageOrderNumber",
+        "reference": null,
+        "absolutePath": "packageOrderNumber"
+      },
+      "readOnly": true,
+      "required": false,
+      "systemField": true,
+      "type": "COMPUTATION",
+      "unique": false,
+      "updatedAt": "2025-07-21T01:53:30.759Z",
+      "viewName": "Package Order Number"
+    },
+    "fields.2": {
+      "_id": "676a0ef912b4ef67be84ab90",
+      "name": "totalWeight",
+      "version": 0,
+      "viewName": "Package Gross Weight (kg)",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab8d",
+      "type": "COMPUTATION",
+      "required": false,
+      "populateData": {
+        "path": "totalWeight",
+        "absolutePath": "totalWeight"
+      },
+      "computation": {
+        "computedValueType": "number",
+        "dependencies": [
+          {
+            "absoluteFieldPath": "productsPacked"
+          }
+        ],
+        "computationHandler": "computeTotalWeight",
+        "content": "\n(async (\n    entityValue, //  the current value of the entity to compute\n    currentValue, // the current value of the field\n    api // the API object to do api calls\n  )=> { \n    \n    const productsPacked =\n      entityValue['productsPacked'];\n    console.log(\"productsPacked: \", productsPacked);\n    if (!productsPacked) {\n      return null;\n    }\n    let weight = 0;\n    for (let i = 0; i < productsPacked.length; i++) {\n\n      const weightValue = parseFloat(\n        entityValue['productsPacked'][i]['productPackageWeight']\n      );\n      if (!isNaN(weightValue)) {\n        weight += weightValue;\n      }\n    }\n\n    return weight;\n  })(entityValue, currentValue, api);"
+      },
+      "readOnly": true,
+      "fields": [],
+      "systemField": true,
+      "unique": false,
+      "childFieldIds": null,
+      "createdAt": "2024-12-27T23:26:32.427Z",
+      "updatedAt": "2025-07-21T01:53:48.133Z",
+      "validation": {
+        "disabled": true
+      }
+    },
+    "fields.3": {
+      "_id": "676a0ef912b4ef67be84ab91",
+      "name": "volume",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab8d",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:37.246Z",
+      "fields": [],
+      "populateData": {
+        "path": "volume",
+        "reference": null,
+        "absolutePath": "volume"
+      },
+      "readOnly": false,
+      "required": true,
+      "systemField": true,
+      "type": "string",
+      "unique": false,
+      "updatedAt": "2025-07-21T01:54:07.608Z",
+      "viewName": "Package Gross Volume "
+    },
+    "fields.4": {
+      "_id": "676a0ef912b4ef67be84ab92",
+      "name": "soDaGel",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab8d",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:37.284Z",
+      "fields": [],
+      "populateData": {
+        "path": "soDaGel",
+        "reference": null,
+        "absolutePath": "soDaGel"
+      },
+      "readOnly": false,
+      "required": true,
+      "systemField": true,
+      "type": "string",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:32.484Z",
+      "viewName": "Số đá gel"
+    },
+    "fields.5": {
+      "_id": "676a0ef912b4ef67be84ab93",
+      "name": "exportId",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab8d",
+      "version": 0,
+      "buildLabelAutocompleteHandler": "customDisplayLabelForExport",
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:37.322Z",
+      "fields": [],
+      "populateData": {
+        "path": "exportId",
+        "reference": {
+          "entityName": "export",
+          "path": null,
+          "version": 0
+        },
+        "absolutePath": "exportId",
+        "referencePopulated": {
+          "_id": "676a0ef812b4ef67be84ab7d",
+          "parentFieldDefinitionId": null,
+          "name": "export",
+          "version": 0,
+          "type": "field_group",
+          "childFieldIds": [
+            "676a0ef812b4ef67be84ab7e"
+          ],
+          "createdAt": "2024-12-24T01:31:36.346Z",
+          "fields": [
+            {
+              "_id": "676a0ef812b4ef67be84ab7e",
+              "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7d",
+              "name": "exportCode",
+              "version": 0,
+              "type": "string",
+              "buildLabelAutocompleteHandler": null,
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:36.386Z",
+              "fields": [],
+              "populateData": {
+                "path": "exportCode",
+                "reference": null,
+                "absolutePath": "exportId.type:reference.exportCode"
+              },
+              "readOnly": false,
+              "required": true,
+              "systemField": true,
+              "unique": false,
+              "updatedAt": "2025-07-21T01:52:54.556Z",
+              "validation": {
+                "messageOnFailure": "Mã xuất cảng không được trùng ",
+                "handler": "validExportCodeAvailable",
+                "content": "\n(async (\n    entityValue, //  the current entity to validate \n    currentValue, // the current value of the field\n    api // the API object to use for do api calls\n  )=> {\n    //  true if the value is valid, false if the value is not valid\n    if (!currentValue) {\n      return true;\n    }\n    const res = await api.get('generic-entities/resource-availability',   {\n        params: {\n          searchFields: {\n            [`value.exportCode`]: currentValue,\n          },\n        } \n      })\n    console.log('is resouce available: ', res)  \n    return res?.data ? false : true\n  })(entityValue, currentValue, api)\n"
+              },
+              "viewName": "Export Code",
+              "computation": {
+                "disabled": true
+              }
+            }
+          ],
+          "populateData": {
+            "path": "export",
+            "reference": null
+          },
+          "readOnly": false,
+          "relationsDisplayed": [
+            {
+              "relateToEntityName": "order",
+              "relateToEntityVersion": 0,
+              "relationType": "one_to_many",
+              "position": "list_generic_entity",
+              "displayed": true,
+              "title": "Danh sách đơn hàng",
+              "relatedField": "order_exportCode"
+            },
+            {
+              "relateToEntityName": "package",
+              "relateToEntityVersion": 0,
+              "relationType": "one_to_many",
+              "position": "list_generic_entity",
+              "displayed": true,
+              "title": "Danh sách đóng thùng",
+              "relatedField": "exportId"
+            }
+          ],
+          "required": false,
+          "systemField": true,
+          "unique": false,
+          "updatedAt": "2025-07-21T01:52:40.090Z",
+          "viewName": "Export",
+          "validation": {
+            "content": "\n(async (\n    entity, //  the current entity to validate \n    currentValue, // the current value of the field\n    api // the API object to use for do api calls\n  )=> {\n    //  true if the value is valid, false if the value is not valid\n    const res = api.get('generic-entities/resource-availability')\n    console.log(\"is resource avalable: \", res)\n    return res ? false : true;\n  })(entity, currentValue, api)\n",
+            "disabled": true
+          }
+        }
+      },
+      "readOnly": false,
+      "required": true,
+      "systemField": true,
+      "type": "reference",
+      "unique": false,
+      "updatedAt": "2025-07-21T01:54:23.284Z",
+      "viewName": "Export"
+    },
+    "fields.5.populateData.referencePopulated": {
+      "_id": "676a0ef812b4ef67be84ab7d",
+      "parentFieldDefinitionId": null,
+      "name": "export",
+      "version": 0,
+      "type": "field_group",
+      "childFieldIds": [
+        "676a0ef812b4ef67be84ab7e"
+      ],
+      "createdAt": "2024-12-24T01:31:36.346Z",
+      "fields": [
+        {
+          "_id": "676a0ef812b4ef67be84ab7e",
+          "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7d",
+          "name": "exportCode",
+          "version": 0,
+          "type": "string",
+          "buildLabelAutocompleteHandler": null,
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:36.386Z",
+          "fields": [],
+          "populateData": {
+            "path": "exportCode",
+            "reference": null,
+            "absolutePath": "exportId.type:reference.exportCode"
+          },
+          "readOnly": false,
+          "required": true,
+          "systemField": true,
+          "unique": false,
+          "updatedAt": "2025-07-21T01:52:54.556Z",
+          "validation": {
+            "messageOnFailure": "Mã xuất cảng không được trùng ",
+            "handler": "validExportCodeAvailable",
+            "content": "\n(async (\n    entityValue, //  the current entity to validate \n    currentValue, // the current value of the field\n    api // the API object to use for do api calls\n  )=> {\n    //  true if the value is valid, false if the value is not valid\n    if (!currentValue) {\n      return true;\n    }\n    const res = await api.get('generic-entities/resource-availability',   {\n        params: {\n          searchFields: {\n            [`value.exportCode`]: currentValue,\n          },\n        } \n      })\n    console.log('is resouce available: ', res)  \n    return res?.data ? false : true\n  })(entityValue, currentValue, api)\n"
+          },
+          "viewName": "Export Code",
+          "computation": {
+            "disabled": true
+          }
+        }
+      ],
+      "populateData": {
+        "path": "export",
+        "reference": null
+      },
+      "readOnly": false,
+      "relationsDisplayed": [
+        {
+          "relateToEntityName": "order",
+          "relateToEntityVersion": 0,
+          "relationType": "one_to_many",
+          "position": "list_generic_entity",
+          "displayed": true,
+          "title": "Danh sách đơn hàng",
+          "relatedField": "order_exportCode"
+        },
+        {
+          "relateToEntityName": "package",
+          "relateToEntityVersion": 0,
+          "relationType": "one_to_many",
+          "position": "list_generic_entity",
+          "displayed": true,
+          "title": "Danh sách đóng thùng",
+          "relatedField": "exportId"
+        }
+      ],
+      "required": false,
+      "systemField": true,
+      "unique": false,
+      "updatedAt": "2025-07-21T01:52:40.090Z",
+      "viewName": "Export",
+      "validation": {
+        "content": "\n(async (\n    entity, //  the current entity to validate \n    currentValue, // the current value of the field\n    api // the API object to use for do api calls\n  )=> {\n    //  true if the value is valid, false if the value is not valid\n    const res = api.get('generic-entities/resource-availability')\n    console.log(\"is resource avalable: \", res)\n    return res ? false : true;\n  })(entity, currentValue, api)\n",
+        "disabled": true
+      }
+    },
+    "fields.5.populateData.referencePopulated.fields.0": {
+      "_id": "676a0ef812b4ef67be84ab7e",
+      "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7d",
+      "name": "exportCode",
+      "version": 0,
+      "type": "string",
+      "buildLabelAutocompleteHandler": null,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:36.386Z",
+      "fields": [],
+      "populateData": {
+        "path": "exportCode",
+        "reference": null,
+        "absolutePath": "exportId.type:reference.exportCode"
+      },
+      "readOnly": false,
+      "required": true,
+      "systemField": true,
+      "unique": false,
+      "updatedAt": "2025-07-21T01:52:54.556Z",
+      "validation": {
+        "messageOnFailure": "Mã xuất cảng không được trùng ",
+        "handler": "validExportCodeAvailable",
+        "content": "\n(async (\n    entityValue, //  the current entity to validate \n    currentValue, // the current value of the field\n    api // the API object to use for do api calls\n  )=> {\n    //  true if the value is valid, false if the value is not valid\n    if (!currentValue) {\n      return true;\n    }\n    const res = await api.get('generic-entities/resource-availability',   {\n        params: {\n          searchFields: {\n            [`value.exportCode`]: currentValue,\n          },\n        } \n      })\n    console.log('is resouce available: ', res)  \n    return res?.data ? false : true\n  })(entityValue, currentValue, api)\n"
+      },
+      "viewName": "Export Code",
+      "computation": {
+        "disabled": true
+      }
+    },
+    "fields.6": {
+      "_id": "676a0ef912b4ef67be84ab94",
+      "name": "packageCustomerId",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab8d",
+      "version": 0,
+      "buildLabelAutocompleteHandler": "customDisplayLabelForCustomer",
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:37.359Z",
+      "fields": [],
+      "populateData": {
+        "path": "packageCustomerId",
+        "reference": {
+          "entityName": "customer",
+          "path": null,
+          "version": 0
+        },
+        "absolutePath": "packageCustomerId",
+        "referencePopulated": {
+          "_id": "676a0ef812b4ef67be84ab7f",
+          "name": "customer",
+          "parentFieldDefinitionId": null,
+          "version": 0,
+          "childFieldIds": [
+            "676a0ef812b4ef67be84ab80",
+            "676a0ef812b4ef67be84ab81",
+            "676a0ef812b4ef67be84ab82",
+            "676a0ef812b4ef67be84ab83"
+          ],
+          "createdAt": "2024-12-24T01:31:36.466Z",
+          "fields": [
+            {
+              "_id": "676a0ef812b4ef67be84ab80",
+              "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7f",
+              "name": "email",
+              "version": 0,
+              "type": "string",
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:36.505Z",
+              "fields": [],
+              "populateData": {
+                "path": "email",
+                "reference": null,
+                "absolutePath": "packageCustomerId.type:reference.email"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:31.892Z",
+              "viewName": "Email"
+            },
+            {
+              "_id": "676a0ef812b4ef67be84ab81",
+              "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7f",
+              "name": "customerCode",
+              "version": 0,
+              "type": "string",
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:36.542Z",
+              "fields": [],
+              "populateData": {
+                "path": "customerCode",
+                "reference": null,
+                "absolutePath": "packageCustomerId.type:reference.customerCode"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "unique": false,
+              "updatedAt": "2025-07-21T01:55:07.354Z",
+              "viewName": "Customer Code"
+            },
+            {
+              "_id": "676a0ef812b4ef67be84ab82",
+              "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7f",
+              "name": "customerName",
+              "version": 0,
+              "type": "string",
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:36.580Z",
+              "fields": [],
+              "populateData": {
+                "path": "customerName",
+                "reference": null,
+                "absolutePath": "packageCustomerId.type:reference.customerName"
+              },
+              "readOnly": false,
+              "required": true,
+              "systemField": true,
+              "unique": false,
+              "updatedAt": "2025-08-03T07:52:42.124Z",
+              "viewName": "Customer Name"
+            },
+            {
+              "_id": "676a0ef812b4ef67be84ab83",
+              "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7f",
+              "name": "address",
+              "version": 0,
+              "type": "string",
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:36.620Z",
+              "fields": [],
+              "populateData": {
+                "path": "address",
+                "reference": null,
+                "absolutePath": "packageCustomerId.type:reference.address"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "unique": false,
+              "updatedAt": "2025-08-02T09:31:13.771Z",
+              "viewName": "Address"
+            }
+          ],
+          "readOnly": false,
+          "required": true,
+          "systemField": true,
+          "type": "field_group",
+          "unique": false,
+          "updatedAt": "2025-07-31T04:00:51.755Z",
+          "viewName": "Customer"
+        }
+      },
+      "readOnly": false,
+      "required": true,
+      "systemField": true,
+      "type": "reference",
+      "unique": false,
+      "updatedAt": "2025-07-21T01:54:32.105Z",
+      "viewName": "Customer"
+    },
+    "fields.6.populateData.referencePopulated": {
+      "_id": "676a0ef812b4ef67be84ab7f",
+      "name": "customer",
+      "parentFieldDefinitionId": null,
+      "version": 0,
+      "childFieldIds": [
+        "676a0ef812b4ef67be84ab80",
+        "676a0ef812b4ef67be84ab81",
+        "676a0ef812b4ef67be84ab82",
+        "676a0ef812b4ef67be84ab83"
+      ],
+      "createdAt": "2024-12-24T01:31:36.466Z",
+      "fields": [
+        {
+          "_id": "676a0ef812b4ef67be84ab80",
+          "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7f",
+          "name": "email",
+          "version": 0,
+          "type": "string",
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:36.505Z",
+          "fields": [],
+          "populateData": {
+            "path": "email",
+            "reference": null,
+            "absolutePath": "packageCustomerId.type:reference.email"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:31.892Z",
+          "viewName": "Email"
+        },
+        {
+          "_id": "676a0ef812b4ef67be84ab81",
+          "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7f",
+          "name": "customerCode",
+          "version": 0,
+          "type": "string",
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:36.542Z",
+          "fields": [],
+          "populateData": {
+            "path": "customerCode",
+            "reference": null,
+            "absolutePath": "packageCustomerId.type:reference.customerCode"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "unique": false,
+          "updatedAt": "2025-07-21T01:55:07.354Z",
+          "viewName": "Customer Code"
+        },
+        {
+          "_id": "676a0ef812b4ef67be84ab82",
+          "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7f",
+          "name": "customerName",
+          "version": 0,
+          "type": "string",
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:36.580Z",
+          "fields": [],
+          "populateData": {
+            "path": "customerName",
+            "reference": null,
+            "absolutePath": "packageCustomerId.type:reference.customerName"
+          },
+          "readOnly": false,
+          "required": true,
+          "systemField": true,
+          "unique": false,
+          "updatedAt": "2025-08-03T07:52:42.124Z",
+          "viewName": "Customer Name"
+        },
+        {
+          "_id": "676a0ef812b4ef67be84ab83",
+          "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7f",
+          "name": "address",
+          "version": 0,
+          "type": "string",
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:36.620Z",
+          "fields": [],
+          "populateData": {
+            "path": "address",
+            "reference": null,
+            "absolutePath": "packageCustomerId.type:reference.address"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "unique": false,
+          "updatedAt": "2025-08-02T09:31:13.771Z",
+          "viewName": "Address"
+        }
+      ],
+      "readOnly": false,
+      "required": true,
+      "systemField": true,
+      "type": "field_group",
+      "unique": false,
+      "updatedAt": "2025-07-31T04:00:51.755Z",
+      "viewName": "Customer"
+    },
+    "fields.6.populateData.referencePopulated.fields.0": {
+      "_id": "676a0ef812b4ef67be84ab80",
+      "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7f",
+      "name": "email",
+      "version": 0,
+      "type": "string",
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:36.505Z",
+      "fields": [],
+      "populateData": {
+        "path": "email",
+        "reference": null,
+        "absolutePath": "packageCustomerId.type:reference.email"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:31.892Z",
+      "viewName": "Email"
+    },
+    "fields.6.populateData.referencePopulated.fields.1": {
+      "_id": "676a0ef812b4ef67be84ab81",
+      "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7f",
+      "name": "customerCode",
+      "version": 0,
+      "type": "string",
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:36.542Z",
+      "fields": [],
+      "populateData": {
+        "path": "customerCode",
+        "reference": null,
+        "absolutePath": "packageCustomerId.type:reference.customerCode"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "unique": false,
+      "updatedAt": "2025-07-21T01:55:07.354Z",
+      "viewName": "Customer Code"
+    },
+    "fields.6.populateData.referencePopulated.fields.2": {
+      "_id": "676a0ef812b4ef67be84ab82",
+      "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7f",
+      "name": "customerName",
+      "version": 0,
+      "type": "string",
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:36.580Z",
+      "fields": [],
+      "populateData": {
+        "path": "customerName",
+        "reference": null,
+        "absolutePath": "packageCustomerId.type:reference.customerName"
+      },
+      "readOnly": false,
+      "required": true,
+      "systemField": true,
+      "unique": false,
+      "updatedAt": "2025-08-03T07:52:42.124Z",
+      "viewName": "Customer Name"
+    },
+    "fields.6.populateData.referencePopulated.fields.3": {
+      "_id": "676a0ef812b4ef67be84ab83",
+      "parentFieldDefinitionId": "676a0ef812b4ef67be84ab7f",
+      "name": "address",
+      "version": 0,
+      "type": "string",
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:36.620Z",
+      "fields": [],
+      "populateData": {
+        "path": "address",
+        "reference": null,
+        "absolutePath": "packageCustomerId.type:reference.address"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "unique": false,
+      "updatedAt": "2025-08-02T09:31:13.771Z",
+      "viewName": "Address"
+    },
+    "fields.7": {
+      "_id": "676a0ef912b4ef67be84ab95",
+      "name": "productsPacked",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab8d",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:37.397Z",
+      "fields": [],
+      "populateData": {
+        "path": "productsPacked",
+        "reference": {
+          "entityName": "product-packaged-entity",
+          "path": null,
+          "version": 0
+        },
+        "absolutePath": "productsPacked",
+        "referencePopulated": {
+          "_id": "676a0ef912b4ef67be84ab96",
+          "name": "product-packaged-entity",
+          "type": "field_group",
+          "version": 0,
+          "childFieldIds": [
+            "676a0ef912b4ef67be84ab97",
+            "676a0ef912b4ef67be84ab98",
+            "676a0ef912b4ef67be84ab99",
+            "676a0ef912b4ef67be84ab9a",
+            "676a0ef912b4ef67be84ab9b",
+            "676a0ef912b4ef67be84ab9c",
+            "676a0ef912b4ef67be84ab9d"
+          ],
+          "createdAt": "2024-12-24T01:31:37.478Z",
+          "fields": [
+            {
+              "_id": "676a0ef912b4ef67be84ab97",
+              "name": "productId",
+              "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+              "version": 0,
+              "buildLabelAutocompleteHandler": "customDisplayLabelForProduct",
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:37.516Z",
+              "fields": [],
+              "populateData": {
+                "path": "productId",
+                "reference": {
+                  "entityName": "product",
+                  "path": null,
+                  "version": 0
+                },
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId",
+                "referencePopulated": {
+                  "_id": "676a0ef712b4ef67be84ab66",
+                  "name": "product",
+                  "parentFieldDefinitionId": null,
+                  "version": 0,
+                  "childFieldIds": [
+                    "676a0ef712b4ef67be84ab67",
+                    "676a0ef712b4ef67be84ab68",
+                    "676a0ef712b4ef67be84ab69",
+                    "676a0ef712b4ef67be84ab6a",
+                    "676a0ef712b4ef67be84ab6b",
+                    "676a0ef712b4ef67be84ab6c",
+                    "676a0ef712b4ef67be84ab6d",
+                    "676a0ef712b4ef67be84ab6e",
+                    "676a0ef712b4ef67be84ab6f",
+                    "676a0ef712b4ef67be84ab70",
+                    "676a0ef712b4ef67be84ab71",
+                    "676a0ef712b4ef67be84ab72",
+                    "676a0ef712b4ef67be84ab73",
+                    "676a0ef712b4ef67be84ab74",
+                    "676a0ef712b4ef67be84ab75",
+                    "676a0ef712b4ef67be84ab76",
+                    "676a0ef812b4ef67be84ab77"
+                  ],
+                  "createdAt": "2024-12-24T01:31:35.101Z",
+                  "fields": [
+                    {
+                      "_id": "676a0ef712b4ef67be84ab67",
+                      "name": "barCodeEAN13",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.313Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "barCodeEAN13",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.barCodeEAN13"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:30.984Z",
+                      "viewName": "Bar code EAN13"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab68",
+                      "name": "barCode",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.356Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "barCode",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.barCode"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2025-11-02T08:42:17.582Z",
+                      "viewName": "Bar code 2",
+                      "useVectorSearch": false
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab69",
+                      "name": "art.Nr",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.395Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "art.Nr",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.art.Nr"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.041Z",
+                      "viewName": "Art.Nr"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab6a",
+                      "name": "gGN",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.442Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "gGN",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.gGN"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.070Z",
+                      "viewName": "GGN"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab6b",
+                      "name": "mãĐốITượNg",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.488Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "mãĐốITượNg",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.mãĐốITượNg"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.099Z",
+                      "viewName": "Mã Đối tượng"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab6c",
+                      "name": "têNThàNhPhẩM",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.531Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "têNThàNhPhẩM",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNThàNhPhẩM"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.128Z",
+                      "viewName": "Tên thành phẩm"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab6d",
+                      "name": "unit",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.573Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "unit",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.unit"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.157Z",
+                      "viewName": "unit"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab6e",
+                      "name": "têNTiếNgAnh",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.614Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "têNTiếNgAnh",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNTiếNgAnh"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.187Z",
+                      "viewName": "Tên tiếng anh"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab6f",
+                      "name": "têNTiếNg",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.655Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "têNTiếNg",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNTiếNg"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.215Z",
+                      "viewName": "Tên tiếng"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab70",
+                      "name": "sKU",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.695Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "sKU",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.sKU"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.244Z",
+                      "viewName": "SKU"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab71",
+                      "name": "name",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.735Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "name",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.name"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "string",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.273Z",
+                      "viewName": "Tên sản phẩm"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab72",
+                      "name": "weight",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.775Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "weight",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.weight"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "number",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.371Z",
+                      "viewName": "Cân nặng"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab73",
+                      "name": "price",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "version": 0,
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.815Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "price",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.price"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "type": "number",
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.400Z",
+                      "viewName": "Giá"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab74",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "name": "botanicalName",
+                      "version": 0,
+                      "type": "string",
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.858Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "botanicalName",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.botanicalName"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.428Z",
+                      "viewName": "Botanical name"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab75",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "name": "giáCNF(CHF/Kg)",
+                      "version": 0,
+                      "type": "string",
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.898Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "giáCNF(CHF/Kg)",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.giáCNF(CHF/Kg)"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.456Z",
+                      "viewName": "Giá CNF (CHF/Kg)"
+                    },
+                    {
+                      "_id": "676a0ef712b4ef67be84ab76",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "name": "packing2",
+                      "version": 0,
+                      "type": "string",
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.939Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "packing2",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.packing2"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.485Z",
+                      "viewName": "Packing2"
+                    },
+                    {
+                      "_id": "676a0ef812b4ef67be84ab77",
+                      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                      "name": "pLU",
+                      "version": 0,
+                      "type": "string",
+                      "childFieldIds": null,
+                      "createdAt": "2024-12-24T01:31:35.983Z",
+                      "fields": [],
+                      "populateData": {
+                        "path": "pLU",
+                        "reference": null,
+                        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.pLU"
+                      },
+                      "readOnly": false,
+                      "required": false,
+                      "systemField": true,
+                      "unique": false,
+                      "updatedAt": "2024-12-27T23:26:31.513Z",
+                      "viewName": "PLU"
+                    }
+                  ],
+                  "readOnly": false,
+                  "required": true,
+                  "systemField": true,
+                  "type": "field_group",
+                  "unique": true,
+                  "updatedAt": "2025-09-02T08:36:24.342Z"
+                }
+              },
+              "readOnly": false,
+              "required": true,
+              "systemField": true,
+              "type": "reference",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:32.655Z",
+              "viewName": "Mã sảng phẩm"
+            },
+            {
+              "_id": "676a0ef912b4ef67be84ab98",
+              "name": "têNThàNhPhẩM",
+              "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+              "version": 0,
+              "childFieldIds": null,
+              "computation": {
+                "computedValueType": "string",
+                "computationHandler": "computeProductName",
+                "dependencies": [
+                  {
+                    "absoluteFieldPath": "productId"
+                  }
+                ]
+              },
+              "createdAt": "2024-12-24T01:31:37.551Z",
+              "fields": [],
+              "populateData": {
+                "path": "têNThàNhPhẩM",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.têNThàNhPhẩM"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "COMPUTATION",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:32.683Z",
+              "viewName": "Tên thành phẩm"
+            },
+            {
+              "_id": "676a0ef912b4ef67be84ab99",
+              "name": "weight",
+              "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+              "version": 0,
+              "childFieldIds": null,
+              "computation": {
+                "computedValueType": "number",
+                "computationHandler": "populateWeight",
+                "dependencies": [
+                  {
+                    "absoluteFieldPath": "productId"
+                  }
+                ]
+              },
+              "createdAt": "2024-12-24T01:31:37.588Z",
+              "fields": [],
+              "populateData": {
+                "path": "weight",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.weight"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "COMPUTATION",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:32.711Z",
+              "viewName": "Cân nặng"
+            },
+            {
+              "_id": "676a0ef912b4ef67be84ab9a",
+              "name": "quantity",
+              "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+              "version": 0,
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:37.625Z",
+              "fields": [],
+              "populateData": {
+                "path": "quantity",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.quantity"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "number",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:32.738Z",
+              "viewName": "Số lượng"
+            },
+            {
+              "_id": "676a0ef912b4ef67be84ab9b",
+              "name": "unit",
+              "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+              "version": 0,
+              "childFieldIds": null,
+              "computation": {
+                "computedValueType": "string",
+                "computationHandler": "computeUnit",
+                "dependencies": [
+                  {
+                    "absoluteFieldPath": "productId"
+                  }
+                ]
+              },
+              "createdAt": "2024-12-24T01:31:37.664Z",
+              "fields": [],
+              "populateData": {
+                "path": "unit",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.unit"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "COMPUTATION",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:32.766Z",
+              "viewName": "unit"
+            },
+            {
+              "_id": "676a0ef912b4ef67be84ab9c",
+              "name": "price",
+              "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+              "version": 0,
+              "childFieldIds": null,
+              "computation": {
+                "computedValueType": "number",
+                "defaultValue": 0,
+                "computationHandler": "computePrice",
+                "dependencies": [
+                  {
+                    "absoluteFieldPath": "productId"
+                  }
+                ]
+              },
+              "createdAt": "2024-12-24T01:31:37.705Z",
+              "fields": [],
+              "populateData": {
+                "path": "price",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.price"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "COMPUTATION",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:32.794Z",
+              "viewName": "Giá"
+            },
+            {
+              "_id": "676a0ef912b4ef67be84ab9d",
+              "name": "productPackageWeight",
+              "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+              "version": 0,
+              "childFieldIds": null,
+              "computation": {
+                "computedValueType": "number",
+                "dependencies": [
+                  {
+                    "absoluteFieldPath": "quantity"
+                  },
+                  {
+                    "absoluteFieldPath": "productId"
+                  },
+                  {
+                    "absoluteFieldPath": "weight"
+                  },
+                  {
+                    "absoluteFieldPath": "unit"
+                  }
+                ],
+                "computationHandler": "computeNetWeight",
+                "defaultValue": 0,
+                "content": "\n(async (\n    entityValue, //  the current value of the entity to compute\n    currentValue, // the current value of the field\n    api // the API object to do api calls\n  )=> { \n  const quantity = parseFloat(entityValue.quantity);\n  const productId = entityValue.productId;\n\n  if (!productId || isNaN(quantity)) {\n    return 0;\n  }\n  const res = await api?.get(`generic-entities/${productId}`);\n  const product = res?.data;\n  let weight = parseFloat(product.value?.weight);\n  if (isNaN(weight)) {\n    return 0;\n  }\n\n  return weight * quantity;\n  })(entityValue, currentValue, api);"
+              },
+              "createdAt": "2024-12-24T01:31:37.743Z",
+              "fields": [],
+              "populateData": {
+                "path": "productPackageWeight",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productPackageWeight"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "COMPUTATION",
+              "unique": false,
+              "updatedAt": "2025-09-03T16:54:38.546Z",
+              "viewName": "Net weight (kg)"
+            }
+          ],
+          "populateData": {
+            "path": "product-Packaged-Entity",
+            "reference": null
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "unique": false,
+          "updatedAt": "2025-06-20T00:10:06.562Z",
+          "viewName": "product-packaged-entity",
+          "hidden": true
+        }
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "array_of_embedded_documents",
+      "unique": false,
+      "updatedAt": "2025-07-21T01:54:51.784Z",
+      "viewName": "Products Packed"
+    },
+    "fields.7.populateData.referencePopulated": {
+      "_id": "676a0ef912b4ef67be84ab96",
+      "name": "product-packaged-entity",
+      "type": "field_group",
+      "version": 0,
+      "childFieldIds": [
+        "676a0ef912b4ef67be84ab97",
+        "676a0ef912b4ef67be84ab98",
+        "676a0ef912b4ef67be84ab99",
+        "676a0ef912b4ef67be84ab9a",
+        "676a0ef912b4ef67be84ab9b",
+        "676a0ef912b4ef67be84ab9c",
+        "676a0ef912b4ef67be84ab9d"
+      ],
+      "createdAt": "2024-12-24T01:31:37.478Z",
+      "fields": [
+        {
+          "_id": "676a0ef912b4ef67be84ab97",
+          "name": "productId",
+          "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+          "version": 0,
+          "buildLabelAutocompleteHandler": "customDisplayLabelForProduct",
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:37.516Z",
+          "fields": [],
+          "populateData": {
+            "path": "productId",
+            "reference": {
+              "entityName": "product",
+              "path": null,
+              "version": 0
+            },
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId",
+            "referencePopulated": {
+              "_id": "676a0ef712b4ef67be84ab66",
+              "name": "product",
+              "parentFieldDefinitionId": null,
+              "version": 0,
+              "childFieldIds": [
+                "676a0ef712b4ef67be84ab67",
+                "676a0ef712b4ef67be84ab68",
+                "676a0ef712b4ef67be84ab69",
+                "676a0ef712b4ef67be84ab6a",
+                "676a0ef712b4ef67be84ab6b",
+                "676a0ef712b4ef67be84ab6c",
+                "676a0ef712b4ef67be84ab6d",
+                "676a0ef712b4ef67be84ab6e",
+                "676a0ef712b4ef67be84ab6f",
+                "676a0ef712b4ef67be84ab70",
+                "676a0ef712b4ef67be84ab71",
+                "676a0ef712b4ef67be84ab72",
+                "676a0ef712b4ef67be84ab73",
+                "676a0ef712b4ef67be84ab74",
+                "676a0ef712b4ef67be84ab75",
+                "676a0ef712b4ef67be84ab76",
+                "676a0ef812b4ef67be84ab77"
+              ],
+              "createdAt": "2024-12-24T01:31:35.101Z",
+              "fields": [
+                {
+                  "_id": "676a0ef712b4ef67be84ab67",
+                  "name": "barCodeEAN13",
+                  "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                  "version": 0,
+                  "childFieldIds": null,
+                  "createdAt": "2024-12-24T01:31:35.313Z",
+                  "fields": [],
+                  "populateData": {
+                    "path": "barCodeEAN13",
+                    "reference": null,
+                    "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.barCodeEAN13"
+                  },
+                  "readOnly": false,
+                  "required": false,
+                  "systemField": true,
+                  "type": "string",
+                  "unique": false,
+                  "updatedAt": "2024-12-27T23:26:30.984Z",
+                  "viewName": "Bar code EAN13"
+                },
+                {
+                  "_id": "676a0ef712b4ef67be84ab68",
+                  "name": "barCode",
+                  "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                  "version": 0,
+                  "childFieldIds": null,
+                  "createdAt": "2024-12-24T01:31:35.356Z",
+                  "fields": [],
+                  "populateData": {
+                    "path": "barCode",
+                    "reference": null,
+                    "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.barCode"
+                  },
+                  "readOnly": false,
+                  "required": false,
+                  "systemField": true,
+                  "type": "string",
+                  "unique": false,
+                  "updatedAt": "2025-11-02T08:42:17.582Z",
+                  "viewName": "Bar code 2",
+                  "useVectorSearch": false
+                },
+                {
+                  "_id": "676a0ef712b4ef67be84ab69",
+                  "name": "art.Nr",
+                  "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                  "version": 0,
+                  "childFieldIds": null,
+                  "createdAt": "2024-12-24T01:31:35.395Z",
+                  "fields": [],
+                  "populateData": {
+                    "path": "art.Nr",
+                    "reference": null,
+                    "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.art.Nr"
+                  },
+                  "readOnly": false,
+                  "required": false,
+                  "systemField": true,
+                  "type": "string",
+                  "unique": false,
+                  "updatedAt": "2024-12-27T23:26:31.041Z",
+                  "viewName": "Art.Nr"
+                },
+                {
+                  "_id": "676a0ef712b4ef67be84ab6a",
+                  "name": "gGN",
+                  "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                  "version": 0,
+                  "childFieldIds": null,
+                  "createdAt": "2024-12-24T01:31:35.442Z",
+                  "fields": [],
+                  "populateData": {
+                    "path": "gGN",
+                    "reference": null,
+                    "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.gGN"
+                  },
+                  "readOnly": false,
+                  "required": false,
+                  "systemField": true,
+                  "type": "string",
+                  "unique": false,
+                  "updatedAt": "2024-12-27T23:26:31.070Z",
+                  "viewName": "GGN"
+                },
+                {
+                  "_id": "676a0ef712b4ef67be84ab6b",
+                  "name": "mãĐốITượNg",
+                  "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                  "version": 0,
+                  "childFieldIds": null,
+                  "createdAt": "2024-12-24T01:31:35.488Z",
+                  "fields": [],
+                  "populateData": {
+                    "path": "mãĐốITượNg",
+                    "reference": null,
+                    "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.mãĐốITượNg"
+                  },
+                  "readOnly": false,
+                  "required": false,
+                  "systemField": true,
+                  "type": "string",
+                  "unique": false,
+                  "updatedAt": "2024-12-27T23:26:31.099Z",
+                  "viewName": "Mã Đối tượng"
+                },
+                {
+                  "_id": "676a0ef712b4ef67be84ab6c",
+                  "name": "têNThàNhPhẩM",
+                  "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                  "version": 0,
+                  "childFieldIds": null,
+                  "createdAt": "2024-12-24T01:31:35.531Z",
+                  "fields": [],
+                  "populateData": {
+                    "path": "têNThàNhPhẩM",
+                    "reference": null,
+                    "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNThàNhPhẩM"
+                  },
+                  "readOnly": false,
+                  "required": false,
+                  "systemField": true,
+                  "type": "string",
+                  "unique": false,
+                  "updatedAt": "2024-12-27T23:26:31.128Z",
+                  "viewName": "Tên thành phẩm"
+                },
+                {
+                  "_id": "676a0ef712b4ef67be84ab6d",
+                  "name": "unit",
+                  "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                  "version": 0,
+                  "childFieldIds": null,
+                  "createdAt": "2024-12-24T01:31:35.573Z",
+                  "fields": [],
+                  "populateData": {
+                    "path": "unit",
+                    "reference": null,
+                    "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.unit"
+                  },
+                  "readOnly": false,
+                  "required": false,
+                  "systemField": true,
+                  "type": "string",
+                  "unique": false,
+                  "updatedAt": "2024-12-27T23:26:31.157Z",
+                  "viewName": "unit"
+                },
+                {
+                  "_id": "676a0ef712b4ef67be84ab6e",
+                  "name": "têNTiếNgAnh",
+                  "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                  "version": 0,
+                  "childFieldIds": null,
+                  "createdAt": "2024-12-24T01:31:35.614Z",
+                  "fields": [],
+                  "populateData": {
+                    "path": "têNTiếNgAnh",
+                    "reference": null,
+                    "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNTiếNgAnh"
+                  },
+                  "readOnly": false,
+                  "required": false,
+                  "systemField": true,
+                  "type": "string",
+                  "unique": false,
+                  "updatedAt": "2024-12-27T23:26:31.187Z",
+                  "viewName": "Tên tiếng anh"
+                },
+                {
+                  "_id": "676a0ef712b4ef67be84ab6f",
+                  "name": "têNTiếNg",
+                  "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                  "version": 0,
+                  "childFieldIds": null,
+                  "createdAt": "2024-12-24T01:31:35.655Z",
+                  "fields": [],
+                  "populateData": {
+                    "path": "têNTiếNg",
+                    "reference": null,
+                    "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNTiếNg"
+                  },
+                  "readOnly": false,
+                  "required": false,
+                  "systemField": true,
+                  "type": "string",
+                  "unique": false,
+                  "updatedAt": "2024-12-27T23:26:31.215Z",
+                  "viewName": "Tên tiếng"
+                },
+                {
+                  "_id": "676a0ef712b4ef67be84ab70",
+                  "name": "sKU",
+                  "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                  "version": 0,
+                  "childFieldIds": null,
+                  "createdAt": "2024-12-24T01:31:35.695Z",
+                  "fields": [],
+                  "populateData": {
+                    "path": "sKU",
+                    "reference": null,
+                    "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.sKU"
+                  },
+                  "readOnly": false,
+                  "required": false,
+                  "systemField": true,
+                  "type": "string",
+                  "unique": false,
+                  "updatedAt": "2024-12-27T23:26:31.244Z",
+                  "viewName": "SKU"
+                },
+                {
+                  "_id": "676a0ef712b4ef67be84ab71",
+                  "name": "name",
+                  "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                  "version": 0,
+                  "childFieldIds": null,
+                  "createdAt": "2024-12-24T01:31:35.735Z",
+                  "fields": [],
+                  "populateData": {
+                    "path": "name",
+                    "reference": null,
+                    "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.name"
+                  },
+                  "readOnly": false,
+                  "required": false,
+                  "systemField": true,
+                  "type": "string",
+                  "unique": false,
+                  "updatedAt": "2024-12-27T23:26:31.273Z",
+                  "viewName": "Tên sản phẩm"
+                },
+                {
+                  "_id": "676a0ef712b4ef67be84ab72",
+                  "name": "weight",
+                  "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                  "version": 0,
+                  "childFieldIds": null,
+                  "createdAt": "2024-12-24T01:31:35.775Z",
+                  "fields": [],
+                  "populateData": {
+                    "path": "weight",
+                    "reference": null,
+                    "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.weight"
+                  },
+                  "readOnly": false,
+                  "required": false,
+                  "systemField": true,
+                  "type": "number",
+                  "unique": false,
+                  "updatedAt": "2024-12-27T23:26:31.371Z",
+                  "viewName": "Cân nặng"
+                },
+                {
+                  "_id": "676a0ef712b4ef67be84ab73",
+                  "name": "price",
+                  "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                  "version": 0,
+                  "childFieldIds": null,
+                  "createdAt": "2024-12-24T01:31:35.815Z",
+                  "fields": [],
+                  "populateData": {
+                    "path": "price",
+                    "reference": null,
+                    "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.price"
+                  },
+                  "readOnly": false,
+                  "required": false,
+                  "systemField": true,
+                  "type": "number",
+                  "unique": false,
+                  "updatedAt": "2024-12-27T23:26:31.400Z",
+                  "viewName": "Giá"
+                },
+                {
+                  "_id": "676a0ef712b4ef67be84ab74",
+                  "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                  "name": "botanicalName",
+                  "version": 0,
+                  "type": "string",
+                  "childFieldIds": null,
+                  "createdAt": "2024-12-24T01:31:35.858Z",
+                  "fields": [],
+                  "populateData": {
+                    "path": "botanicalName",
+                    "reference": null,
+                    "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.botanicalName"
+                  },
+                  "readOnly": false,
+                  "required": false,
+                  "systemField": true,
+                  "unique": false,
+                  "updatedAt": "2024-12-27T23:26:31.428Z",
+                  "viewName": "Botanical name"
+                },
+                {
+                  "_id": "676a0ef712b4ef67be84ab75",
+                  "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                  "name": "giáCNF(CHF/Kg)",
+                  "version": 0,
+                  "type": "string",
+                  "childFieldIds": null,
+                  "createdAt": "2024-12-24T01:31:35.898Z",
+                  "fields": [],
+                  "populateData": {
+                    "path": "giáCNF(CHF/Kg)",
+                    "reference": null,
+                    "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.giáCNF(CHF/Kg)"
+                  },
+                  "readOnly": false,
+                  "required": false,
+                  "systemField": true,
+                  "unique": false,
+                  "updatedAt": "2024-12-27T23:26:31.456Z",
+                  "viewName": "Giá CNF (CHF/Kg)"
+                },
+                {
+                  "_id": "676a0ef712b4ef67be84ab76",
+                  "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                  "name": "packing2",
+                  "version": 0,
+                  "type": "string",
+                  "childFieldIds": null,
+                  "createdAt": "2024-12-24T01:31:35.939Z",
+                  "fields": [],
+                  "populateData": {
+                    "path": "packing2",
+                    "reference": null,
+                    "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.packing2"
+                  },
+                  "readOnly": false,
+                  "required": false,
+                  "systemField": true,
+                  "unique": false,
+                  "updatedAt": "2024-12-27T23:26:31.485Z",
+                  "viewName": "Packing2"
+                },
+                {
+                  "_id": "676a0ef812b4ef67be84ab77",
+                  "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+                  "name": "pLU",
+                  "version": 0,
+                  "type": "string",
+                  "childFieldIds": null,
+                  "createdAt": "2024-12-24T01:31:35.983Z",
+                  "fields": [],
+                  "populateData": {
+                    "path": "pLU",
+                    "reference": null,
+                    "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.pLU"
+                  },
+                  "readOnly": false,
+                  "required": false,
+                  "systemField": true,
+                  "unique": false,
+                  "updatedAt": "2024-12-27T23:26:31.513Z",
+                  "viewName": "PLU"
+                }
+              ],
+              "readOnly": false,
+              "required": true,
+              "systemField": true,
+              "type": "field_group",
+              "unique": true,
+              "updatedAt": "2025-09-02T08:36:24.342Z"
+            }
+          },
+          "readOnly": false,
+          "required": true,
+          "systemField": true,
+          "type": "reference",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:32.655Z",
+          "viewName": "Mã sảng phẩm"
+        },
+        {
+          "_id": "676a0ef912b4ef67be84ab98",
+          "name": "têNThàNhPhẩM",
+          "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+          "version": 0,
+          "childFieldIds": null,
+          "computation": {
+            "computedValueType": "string",
+            "computationHandler": "computeProductName",
+            "dependencies": [
+              {
+                "absoluteFieldPath": "productId"
+              }
+            ]
+          },
+          "createdAt": "2024-12-24T01:31:37.551Z",
+          "fields": [],
+          "populateData": {
+            "path": "têNThàNhPhẩM",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.têNThàNhPhẩM"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "COMPUTATION",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:32.683Z",
+          "viewName": "Tên thành phẩm"
+        },
+        {
+          "_id": "676a0ef912b4ef67be84ab99",
+          "name": "weight",
+          "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+          "version": 0,
+          "childFieldIds": null,
+          "computation": {
+            "computedValueType": "number",
+            "computationHandler": "populateWeight",
+            "dependencies": [
+              {
+                "absoluteFieldPath": "productId"
+              }
+            ]
+          },
+          "createdAt": "2024-12-24T01:31:37.588Z",
+          "fields": [],
+          "populateData": {
+            "path": "weight",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.weight"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "COMPUTATION",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:32.711Z",
+          "viewName": "Cân nặng"
+        },
+        {
+          "_id": "676a0ef912b4ef67be84ab9a",
+          "name": "quantity",
+          "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+          "version": 0,
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:37.625Z",
+          "fields": [],
+          "populateData": {
+            "path": "quantity",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.quantity"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "number",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:32.738Z",
+          "viewName": "Số lượng"
+        },
+        {
+          "_id": "676a0ef912b4ef67be84ab9b",
+          "name": "unit",
+          "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+          "version": 0,
+          "childFieldIds": null,
+          "computation": {
+            "computedValueType": "string",
+            "computationHandler": "computeUnit",
+            "dependencies": [
+              {
+                "absoluteFieldPath": "productId"
+              }
+            ]
+          },
+          "createdAt": "2024-12-24T01:31:37.664Z",
+          "fields": [],
+          "populateData": {
+            "path": "unit",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.unit"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "COMPUTATION",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:32.766Z",
+          "viewName": "unit"
+        },
+        {
+          "_id": "676a0ef912b4ef67be84ab9c",
+          "name": "price",
+          "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+          "version": 0,
+          "childFieldIds": null,
+          "computation": {
+            "computedValueType": "number",
+            "defaultValue": 0,
+            "computationHandler": "computePrice",
+            "dependencies": [
+              {
+                "absoluteFieldPath": "productId"
+              }
+            ]
+          },
+          "createdAt": "2024-12-24T01:31:37.705Z",
+          "fields": [],
+          "populateData": {
+            "path": "price",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.price"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "COMPUTATION",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:32.794Z",
+          "viewName": "Giá"
+        },
+        {
+          "_id": "676a0ef912b4ef67be84ab9d",
+          "name": "productPackageWeight",
+          "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+          "version": 0,
+          "childFieldIds": null,
+          "computation": {
+            "computedValueType": "number",
+            "dependencies": [
+              {
+                "absoluteFieldPath": "quantity"
+              },
+              {
+                "absoluteFieldPath": "productId"
+              },
+              {
+                "absoluteFieldPath": "weight"
+              },
+              {
+                "absoluteFieldPath": "unit"
+              }
+            ],
+            "computationHandler": "computeNetWeight",
+            "defaultValue": 0,
+            "content": "\n(async (\n    entityValue, //  the current value of the entity to compute\n    currentValue, // the current value of the field\n    api // the API object to do api calls\n  )=> { \n  const quantity = parseFloat(entityValue.quantity);\n  const productId = entityValue.productId;\n\n  if (!productId || isNaN(quantity)) {\n    return 0;\n  }\n  const res = await api?.get(`generic-entities/${productId}`);\n  const product = res?.data;\n  let weight = parseFloat(product.value?.weight);\n  if (isNaN(weight)) {\n    return 0;\n  }\n\n  return weight * quantity;\n  })(entityValue, currentValue, api);"
+          },
+          "createdAt": "2024-12-24T01:31:37.743Z",
+          "fields": [],
+          "populateData": {
+            "path": "productPackageWeight",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productPackageWeight"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "COMPUTATION",
+          "unique": false,
+          "updatedAt": "2025-09-03T16:54:38.546Z",
+          "viewName": "Net weight (kg)"
+        }
+      ],
+      "populateData": {
+        "path": "product-Packaged-Entity",
+        "reference": null
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "unique": false,
+      "updatedAt": "2025-06-20T00:10:06.562Z",
+      "viewName": "product-packaged-entity",
+      "hidden": true
+    },
+    "fields.7.populateData.referencePopulated.fields.0": {
+      "_id": "676a0ef912b4ef67be84ab97",
+      "name": "productId",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+      "version": 0,
+      "buildLabelAutocompleteHandler": "customDisplayLabelForProduct",
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:37.516Z",
+      "fields": [],
+      "populateData": {
+        "path": "productId",
+        "reference": {
+          "entityName": "product",
+          "path": null,
+          "version": 0
+        },
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId",
+        "referencePopulated": {
+          "_id": "676a0ef712b4ef67be84ab66",
+          "name": "product",
+          "parentFieldDefinitionId": null,
+          "version": 0,
+          "childFieldIds": [
+            "676a0ef712b4ef67be84ab67",
+            "676a0ef712b4ef67be84ab68",
+            "676a0ef712b4ef67be84ab69",
+            "676a0ef712b4ef67be84ab6a",
+            "676a0ef712b4ef67be84ab6b",
+            "676a0ef712b4ef67be84ab6c",
+            "676a0ef712b4ef67be84ab6d",
+            "676a0ef712b4ef67be84ab6e",
+            "676a0ef712b4ef67be84ab6f",
+            "676a0ef712b4ef67be84ab70",
+            "676a0ef712b4ef67be84ab71",
+            "676a0ef712b4ef67be84ab72",
+            "676a0ef712b4ef67be84ab73",
+            "676a0ef712b4ef67be84ab74",
+            "676a0ef712b4ef67be84ab75",
+            "676a0ef712b4ef67be84ab76",
+            "676a0ef812b4ef67be84ab77"
+          ],
+          "createdAt": "2024-12-24T01:31:35.101Z",
+          "fields": [
+            {
+              "_id": "676a0ef712b4ef67be84ab67",
+              "name": "barCodeEAN13",
+              "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+              "version": 0,
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:35.313Z",
+              "fields": [],
+              "populateData": {
+                "path": "barCodeEAN13",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.barCodeEAN13"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "string",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:30.984Z",
+              "viewName": "Bar code EAN13"
+            },
+            {
+              "_id": "676a0ef712b4ef67be84ab68",
+              "name": "barCode",
+              "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+              "version": 0,
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:35.356Z",
+              "fields": [],
+              "populateData": {
+                "path": "barCode",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.barCode"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "string",
+              "unique": false,
+              "updatedAt": "2025-11-02T08:42:17.582Z",
+              "viewName": "Bar code 2",
+              "useVectorSearch": false
+            },
+            {
+              "_id": "676a0ef712b4ef67be84ab69",
+              "name": "art.Nr",
+              "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+              "version": 0,
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:35.395Z",
+              "fields": [],
+              "populateData": {
+                "path": "art.Nr",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.art.Nr"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "string",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:31.041Z",
+              "viewName": "Art.Nr"
+            },
+            {
+              "_id": "676a0ef712b4ef67be84ab6a",
+              "name": "gGN",
+              "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+              "version": 0,
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:35.442Z",
+              "fields": [],
+              "populateData": {
+                "path": "gGN",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.gGN"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "string",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:31.070Z",
+              "viewName": "GGN"
+            },
+            {
+              "_id": "676a0ef712b4ef67be84ab6b",
+              "name": "mãĐốITượNg",
+              "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+              "version": 0,
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:35.488Z",
+              "fields": [],
+              "populateData": {
+                "path": "mãĐốITượNg",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.mãĐốITượNg"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "string",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:31.099Z",
+              "viewName": "Mã Đối tượng"
+            },
+            {
+              "_id": "676a0ef712b4ef67be84ab6c",
+              "name": "têNThàNhPhẩM",
+              "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+              "version": 0,
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:35.531Z",
+              "fields": [],
+              "populateData": {
+                "path": "têNThàNhPhẩM",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNThàNhPhẩM"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "string",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:31.128Z",
+              "viewName": "Tên thành phẩm"
+            },
+            {
+              "_id": "676a0ef712b4ef67be84ab6d",
+              "name": "unit",
+              "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+              "version": 0,
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:35.573Z",
+              "fields": [],
+              "populateData": {
+                "path": "unit",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.unit"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "string",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:31.157Z",
+              "viewName": "unit"
+            },
+            {
+              "_id": "676a0ef712b4ef67be84ab6e",
+              "name": "têNTiếNgAnh",
+              "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+              "version": 0,
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:35.614Z",
+              "fields": [],
+              "populateData": {
+                "path": "têNTiếNgAnh",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNTiếNgAnh"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "string",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:31.187Z",
+              "viewName": "Tên tiếng anh"
+            },
+            {
+              "_id": "676a0ef712b4ef67be84ab6f",
+              "name": "têNTiếNg",
+              "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+              "version": 0,
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:35.655Z",
+              "fields": [],
+              "populateData": {
+                "path": "têNTiếNg",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNTiếNg"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "string",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:31.215Z",
+              "viewName": "Tên tiếng"
+            },
+            {
+              "_id": "676a0ef712b4ef67be84ab70",
+              "name": "sKU",
+              "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+              "version": 0,
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:35.695Z",
+              "fields": [],
+              "populateData": {
+                "path": "sKU",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.sKU"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "string",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:31.244Z",
+              "viewName": "SKU"
+            },
+            {
+              "_id": "676a0ef712b4ef67be84ab71",
+              "name": "name",
+              "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+              "version": 0,
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:35.735Z",
+              "fields": [],
+              "populateData": {
+                "path": "name",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.name"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "string",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:31.273Z",
+              "viewName": "Tên sản phẩm"
+            },
+            {
+              "_id": "676a0ef712b4ef67be84ab72",
+              "name": "weight",
+              "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+              "version": 0,
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:35.775Z",
+              "fields": [],
+              "populateData": {
+                "path": "weight",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.weight"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "number",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:31.371Z",
+              "viewName": "Cân nặng"
+            },
+            {
+              "_id": "676a0ef712b4ef67be84ab73",
+              "name": "price",
+              "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+              "version": 0,
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:35.815Z",
+              "fields": [],
+              "populateData": {
+                "path": "price",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.price"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "type": "number",
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:31.400Z",
+              "viewName": "Giá"
+            },
+            {
+              "_id": "676a0ef712b4ef67be84ab74",
+              "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+              "name": "botanicalName",
+              "version": 0,
+              "type": "string",
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:35.858Z",
+              "fields": [],
+              "populateData": {
+                "path": "botanicalName",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.botanicalName"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:31.428Z",
+              "viewName": "Botanical name"
+            },
+            {
+              "_id": "676a0ef712b4ef67be84ab75",
+              "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+              "name": "giáCNF(CHF/Kg)",
+              "version": 0,
+              "type": "string",
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:35.898Z",
+              "fields": [],
+              "populateData": {
+                "path": "giáCNF(CHF/Kg)",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.giáCNF(CHF/Kg)"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:31.456Z",
+              "viewName": "Giá CNF (CHF/Kg)"
+            },
+            {
+              "_id": "676a0ef712b4ef67be84ab76",
+              "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+              "name": "packing2",
+              "version": 0,
+              "type": "string",
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:35.939Z",
+              "fields": [],
+              "populateData": {
+                "path": "packing2",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.packing2"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:31.485Z",
+              "viewName": "Packing2"
+            },
+            {
+              "_id": "676a0ef812b4ef67be84ab77",
+              "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+              "name": "pLU",
+              "version": 0,
+              "type": "string",
+              "childFieldIds": null,
+              "createdAt": "2024-12-24T01:31:35.983Z",
+              "fields": [],
+              "populateData": {
+                "path": "pLU",
+                "reference": null,
+                "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.pLU"
+              },
+              "readOnly": false,
+              "required": false,
+              "systemField": true,
+              "unique": false,
+              "updatedAt": "2024-12-27T23:26:31.513Z",
+              "viewName": "PLU"
+            }
+          ],
+          "readOnly": false,
+          "required": true,
+          "systemField": true,
+          "type": "field_group",
+          "unique": true,
+          "updatedAt": "2025-09-02T08:36:24.342Z"
+        }
+      },
+      "readOnly": false,
+      "required": true,
+      "systemField": true,
+      "type": "reference",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:32.655Z",
+      "viewName": "Mã sảng phẩm"
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated": {
+      "_id": "676a0ef712b4ef67be84ab66",
+      "name": "product",
+      "parentFieldDefinitionId": null,
+      "version": 0,
+      "childFieldIds": [
+        "676a0ef712b4ef67be84ab67",
+        "676a0ef712b4ef67be84ab68",
+        "676a0ef712b4ef67be84ab69",
+        "676a0ef712b4ef67be84ab6a",
+        "676a0ef712b4ef67be84ab6b",
+        "676a0ef712b4ef67be84ab6c",
+        "676a0ef712b4ef67be84ab6d",
+        "676a0ef712b4ef67be84ab6e",
+        "676a0ef712b4ef67be84ab6f",
+        "676a0ef712b4ef67be84ab70",
+        "676a0ef712b4ef67be84ab71",
+        "676a0ef712b4ef67be84ab72",
+        "676a0ef712b4ef67be84ab73",
+        "676a0ef712b4ef67be84ab74",
+        "676a0ef712b4ef67be84ab75",
+        "676a0ef712b4ef67be84ab76",
+        "676a0ef812b4ef67be84ab77"
+      ],
+      "createdAt": "2024-12-24T01:31:35.101Z",
+      "fields": [
+        {
+          "_id": "676a0ef712b4ef67be84ab67",
+          "name": "barCodeEAN13",
+          "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+          "version": 0,
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:35.313Z",
+          "fields": [],
+          "populateData": {
+            "path": "barCodeEAN13",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.barCodeEAN13"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "string",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:30.984Z",
+          "viewName": "Bar code EAN13"
+        },
+        {
+          "_id": "676a0ef712b4ef67be84ab68",
+          "name": "barCode",
+          "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+          "version": 0,
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:35.356Z",
+          "fields": [],
+          "populateData": {
+            "path": "barCode",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.barCode"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "string",
+          "unique": false,
+          "updatedAt": "2025-11-02T08:42:17.582Z",
+          "viewName": "Bar code 2",
+          "useVectorSearch": false
+        },
+        {
+          "_id": "676a0ef712b4ef67be84ab69",
+          "name": "art.Nr",
+          "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+          "version": 0,
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:35.395Z",
+          "fields": [],
+          "populateData": {
+            "path": "art.Nr",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.art.Nr"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "string",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:31.041Z",
+          "viewName": "Art.Nr"
+        },
+        {
+          "_id": "676a0ef712b4ef67be84ab6a",
+          "name": "gGN",
+          "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+          "version": 0,
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:35.442Z",
+          "fields": [],
+          "populateData": {
+            "path": "gGN",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.gGN"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "string",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:31.070Z",
+          "viewName": "GGN"
+        },
+        {
+          "_id": "676a0ef712b4ef67be84ab6b",
+          "name": "mãĐốITượNg",
+          "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+          "version": 0,
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:35.488Z",
+          "fields": [],
+          "populateData": {
+            "path": "mãĐốITượNg",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.mãĐốITượNg"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "string",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:31.099Z",
+          "viewName": "Mã Đối tượng"
+        },
+        {
+          "_id": "676a0ef712b4ef67be84ab6c",
+          "name": "têNThàNhPhẩM",
+          "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+          "version": 0,
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:35.531Z",
+          "fields": [],
+          "populateData": {
+            "path": "têNThàNhPhẩM",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNThàNhPhẩM"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "string",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:31.128Z",
+          "viewName": "Tên thành phẩm"
+        },
+        {
+          "_id": "676a0ef712b4ef67be84ab6d",
+          "name": "unit",
+          "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+          "version": 0,
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:35.573Z",
+          "fields": [],
+          "populateData": {
+            "path": "unit",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.unit"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "string",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:31.157Z",
+          "viewName": "unit"
+        },
+        {
+          "_id": "676a0ef712b4ef67be84ab6e",
+          "name": "têNTiếNgAnh",
+          "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+          "version": 0,
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:35.614Z",
+          "fields": [],
+          "populateData": {
+            "path": "têNTiếNgAnh",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNTiếNgAnh"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "string",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:31.187Z",
+          "viewName": "Tên tiếng anh"
+        },
+        {
+          "_id": "676a0ef712b4ef67be84ab6f",
+          "name": "têNTiếNg",
+          "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+          "version": 0,
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:35.655Z",
+          "fields": [],
+          "populateData": {
+            "path": "têNTiếNg",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNTiếNg"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "string",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:31.215Z",
+          "viewName": "Tên tiếng"
+        },
+        {
+          "_id": "676a0ef712b4ef67be84ab70",
+          "name": "sKU",
+          "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+          "version": 0,
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:35.695Z",
+          "fields": [],
+          "populateData": {
+            "path": "sKU",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.sKU"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "string",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:31.244Z",
+          "viewName": "SKU"
+        },
+        {
+          "_id": "676a0ef712b4ef67be84ab71",
+          "name": "name",
+          "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+          "version": 0,
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:35.735Z",
+          "fields": [],
+          "populateData": {
+            "path": "name",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.name"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "string",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:31.273Z",
+          "viewName": "Tên sản phẩm"
+        },
+        {
+          "_id": "676a0ef712b4ef67be84ab72",
+          "name": "weight",
+          "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+          "version": 0,
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:35.775Z",
+          "fields": [],
+          "populateData": {
+            "path": "weight",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.weight"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "number",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:31.371Z",
+          "viewName": "Cân nặng"
+        },
+        {
+          "_id": "676a0ef712b4ef67be84ab73",
+          "name": "price",
+          "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+          "version": 0,
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:35.815Z",
+          "fields": [],
+          "populateData": {
+            "path": "price",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.price"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "type": "number",
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:31.400Z",
+          "viewName": "Giá"
+        },
+        {
+          "_id": "676a0ef712b4ef67be84ab74",
+          "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+          "name": "botanicalName",
+          "version": 0,
+          "type": "string",
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:35.858Z",
+          "fields": [],
+          "populateData": {
+            "path": "botanicalName",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.botanicalName"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:31.428Z",
+          "viewName": "Botanical name"
+        },
+        {
+          "_id": "676a0ef712b4ef67be84ab75",
+          "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+          "name": "giáCNF(CHF/Kg)",
+          "version": 0,
+          "type": "string",
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:35.898Z",
+          "fields": [],
+          "populateData": {
+            "path": "giáCNF(CHF/Kg)",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.giáCNF(CHF/Kg)"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:31.456Z",
+          "viewName": "Giá CNF (CHF/Kg)"
+        },
+        {
+          "_id": "676a0ef712b4ef67be84ab76",
+          "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+          "name": "packing2",
+          "version": 0,
+          "type": "string",
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:35.939Z",
+          "fields": [],
+          "populateData": {
+            "path": "packing2",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.packing2"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:31.485Z",
+          "viewName": "Packing2"
+        },
+        {
+          "_id": "676a0ef812b4ef67be84ab77",
+          "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+          "name": "pLU",
+          "version": 0,
+          "type": "string",
+          "childFieldIds": null,
+          "createdAt": "2024-12-24T01:31:35.983Z",
+          "fields": [],
+          "populateData": {
+            "path": "pLU",
+            "reference": null,
+            "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.pLU"
+          },
+          "readOnly": false,
+          "required": false,
+          "systemField": true,
+          "unique": false,
+          "updatedAt": "2024-12-27T23:26:31.513Z",
+          "viewName": "PLU"
+        }
+      ],
+      "readOnly": false,
+      "required": true,
+      "systemField": true,
+      "type": "field_group",
+      "unique": true,
+      "updatedAt": "2025-09-02T08:36:24.342Z"
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated.fields.0": {
+      "_id": "676a0ef712b4ef67be84ab67",
+      "name": "barCodeEAN13",
+      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:35.313Z",
+      "fields": [],
+      "populateData": {
+        "path": "barCodeEAN13",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.barCodeEAN13"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "string",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:30.984Z",
+      "viewName": "Bar code EAN13"
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated.fields.1": {
+      "_id": "676a0ef712b4ef67be84ab68",
+      "name": "barCode",
+      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:35.356Z",
+      "fields": [],
+      "populateData": {
+        "path": "barCode",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.barCode"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "string",
+      "unique": false,
+      "updatedAt": "2025-11-02T08:42:17.582Z",
+      "viewName": "Bar code 2",
+      "useVectorSearch": false
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated.fields.2": {
+      "_id": "676a0ef712b4ef67be84ab69",
+      "name": "art.Nr",
+      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:35.395Z",
+      "fields": [],
+      "populateData": {
+        "path": "art.Nr",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.art.Nr"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "string",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:31.041Z",
+      "viewName": "Art.Nr"
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated.fields.3": {
+      "_id": "676a0ef712b4ef67be84ab6a",
+      "name": "gGN",
+      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:35.442Z",
+      "fields": [],
+      "populateData": {
+        "path": "gGN",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.gGN"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "string",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:31.070Z",
+      "viewName": "GGN"
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated.fields.4": {
+      "_id": "676a0ef712b4ef67be84ab6b",
+      "name": "mãĐốITượNg",
+      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:35.488Z",
+      "fields": [],
+      "populateData": {
+        "path": "mãĐốITượNg",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.mãĐốITượNg"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "string",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:31.099Z",
+      "viewName": "Mã Đối tượng"
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated.fields.5": {
+      "_id": "676a0ef712b4ef67be84ab6c",
+      "name": "têNThàNhPhẩM",
+      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:35.531Z",
+      "fields": [],
+      "populateData": {
+        "path": "têNThàNhPhẩM",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNThàNhPhẩM"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "string",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:31.128Z",
+      "viewName": "Tên thành phẩm"
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated.fields.6": {
+      "_id": "676a0ef712b4ef67be84ab6d",
+      "name": "unit",
+      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:35.573Z",
+      "fields": [],
+      "populateData": {
+        "path": "unit",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.unit"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "string",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:31.157Z",
+      "viewName": "unit"
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated.fields.7": {
+      "_id": "676a0ef712b4ef67be84ab6e",
+      "name": "têNTiếNgAnh",
+      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:35.614Z",
+      "fields": [],
+      "populateData": {
+        "path": "têNTiếNgAnh",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNTiếNgAnh"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "string",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:31.187Z",
+      "viewName": "Tên tiếng anh"
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated.fields.8": {
+      "_id": "676a0ef712b4ef67be84ab6f",
+      "name": "têNTiếNg",
+      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:35.655Z",
+      "fields": [],
+      "populateData": {
+        "path": "têNTiếNg",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.têNTiếNg"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "string",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:31.215Z",
+      "viewName": "Tên tiếng"
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated.fields.9": {
+      "_id": "676a0ef712b4ef67be84ab70",
+      "name": "sKU",
+      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:35.695Z",
+      "fields": [],
+      "populateData": {
+        "path": "sKU",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.sKU"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "string",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:31.244Z",
+      "viewName": "SKU"
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated.fields.10": {
+      "_id": "676a0ef712b4ef67be84ab71",
+      "name": "name",
+      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:35.735Z",
+      "fields": [],
+      "populateData": {
+        "path": "name",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.name"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "string",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:31.273Z",
+      "viewName": "Tên sản phẩm"
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated.fields.11": {
+      "_id": "676a0ef712b4ef67be84ab72",
+      "name": "weight",
+      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:35.775Z",
+      "fields": [],
+      "populateData": {
+        "path": "weight",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.weight"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "number",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:31.371Z",
+      "viewName": "Cân nặng"
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated.fields.12": {
+      "_id": "676a0ef712b4ef67be84ab73",
+      "name": "price",
+      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:35.815Z",
+      "fields": [],
+      "populateData": {
+        "path": "price",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.price"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "number",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:31.400Z",
+      "viewName": "Giá"
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated.fields.13": {
+      "_id": "676a0ef712b4ef67be84ab74",
+      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+      "name": "botanicalName",
+      "version": 0,
+      "type": "string",
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:35.858Z",
+      "fields": [],
+      "populateData": {
+        "path": "botanicalName",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.botanicalName"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:31.428Z",
+      "viewName": "Botanical name"
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated.fields.14": {
+      "_id": "676a0ef712b4ef67be84ab75",
+      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+      "name": "giáCNF(CHF/Kg)",
+      "version": 0,
+      "type": "string",
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:35.898Z",
+      "fields": [],
+      "populateData": {
+        "path": "giáCNF(CHF/Kg)",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.giáCNF(CHF/Kg)"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:31.456Z",
+      "viewName": "Giá CNF (CHF/Kg)"
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated.fields.15": {
+      "_id": "676a0ef712b4ef67be84ab76",
+      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+      "name": "packing2",
+      "version": 0,
+      "type": "string",
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:35.939Z",
+      "fields": [],
+      "populateData": {
+        "path": "packing2",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.packing2"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:31.485Z",
+      "viewName": "Packing2"
+    },
+    "fields.7.populateData.referencePopulated.fields.0.populateData.referencePopulated.fields.16": {
+      "_id": "676a0ef812b4ef67be84ab77",
+      "parentFieldDefinitionId": "676a0ef712b4ef67be84ab66",
+      "name": "pLU",
+      "version": 0,
+      "type": "string",
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:35.983Z",
+      "fields": [],
+      "populateData": {
+        "path": "pLU",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productId.type:reference.pLU"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:31.513Z",
+      "viewName": "PLU"
+    },
+    "fields.7.populateData.referencePopulated.fields.1": {
+      "_id": "676a0ef912b4ef67be84ab98",
+      "name": "têNThàNhPhẩM",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+      "version": 0,
+      "childFieldIds": null,
+      "computation": {
+        "computedValueType": "string",
+        "computationHandler": "computeProductName",
+        "dependencies": [
+          {
+            "absoluteFieldPath": "productId"
+          }
+        ]
+      },
+      "createdAt": "2024-12-24T01:31:37.551Z",
+      "fields": [],
+      "populateData": {
+        "path": "têNThàNhPhẩM",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.têNThàNhPhẩM"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "COMPUTATION",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:32.683Z",
+      "viewName": "Tên thành phẩm"
+    },
+    "fields.7.populateData.referencePopulated.fields.2": {
+      "_id": "676a0ef912b4ef67be84ab99",
+      "name": "weight",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+      "version": 0,
+      "childFieldIds": null,
+      "computation": {
+        "computedValueType": "number",
+        "computationHandler": "populateWeight",
+        "dependencies": [
+          {
+            "absoluteFieldPath": "productId"
+          }
+        ]
+      },
+      "createdAt": "2024-12-24T01:31:37.588Z",
+      "fields": [],
+      "populateData": {
+        "path": "weight",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.weight"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "COMPUTATION",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:32.711Z",
+      "viewName": "Cân nặng"
+    },
+    "fields.7.populateData.referencePopulated.fields.3": {
+      "_id": "676a0ef912b4ef67be84ab9a",
+      "name": "quantity",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+      "version": 0,
+      "childFieldIds": null,
+      "createdAt": "2024-12-24T01:31:37.625Z",
+      "fields": [],
+      "populateData": {
+        "path": "quantity",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.quantity"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "number",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:32.738Z",
+      "viewName": "Số lượng"
+    },
+    "fields.7.populateData.referencePopulated.fields.4": {
+      "_id": "676a0ef912b4ef67be84ab9b",
+      "name": "unit",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+      "version": 0,
+      "childFieldIds": null,
+      "computation": {
+        "computedValueType": "string",
+        "computationHandler": "computeUnit",
+        "dependencies": [
+          {
+            "absoluteFieldPath": "productId"
+          }
+        ]
+      },
+      "createdAt": "2024-12-24T01:31:37.664Z",
+      "fields": [],
+      "populateData": {
+        "path": "unit",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.unit"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "COMPUTATION",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:32.766Z",
+      "viewName": "unit"
+    },
+    "fields.7.populateData.referencePopulated.fields.5": {
+      "_id": "676a0ef912b4ef67be84ab9c",
+      "name": "price",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+      "version": 0,
+      "childFieldIds": null,
+      "computation": {
+        "computedValueType": "number",
+        "defaultValue": 0,
+        "computationHandler": "computePrice",
+        "dependencies": [
+          {
+            "absoluteFieldPath": "productId"
+          }
+        ]
+      },
+      "createdAt": "2024-12-24T01:31:37.705Z",
+      "fields": [],
+      "populateData": {
+        "path": "price",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.price"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "COMPUTATION",
+      "unique": false,
+      "updatedAt": "2024-12-27T23:26:32.794Z",
+      "viewName": "Giá"
+    },
+    "fields.7.populateData.referencePopulated.fields.6": {
+      "_id": "676a0ef912b4ef67be84ab9d",
+      "name": "productPackageWeight",
+      "parentFieldDefinitionId": "676a0ef912b4ef67be84ab96",
+      "version": 0,
+      "childFieldIds": null,
+      "computation": {
+        "computedValueType": "number",
+        "dependencies": [
+          {
+            "absoluteFieldPath": "quantity"
+          },
+          {
+            "absoluteFieldPath": "productId"
+          },
+          {
+            "absoluteFieldPath": "weight"
+          },
+          {
+            "absoluteFieldPath": "unit"
+          }
+        ],
+        "computationHandler": "computeNetWeight",
+        "defaultValue": 0,
+        "content": "\n(async (\n    entityValue, //  the current value of the entity to compute\n    currentValue, // the current value of the field\n    api // the API object to do api calls\n  )=> { \n  const quantity = parseFloat(entityValue.quantity);\n  const productId = entityValue.productId;\n\n  if (!productId || isNaN(quantity)) {\n    return 0;\n  }\n  const res = await api?.get(`generic-entities/${productId}`);\n  const product = res?.data;\n  let weight = parseFloat(product.value?.weight);\n  if (isNaN(weight)) {\n    return 0;\n  }\n\n  return weight * quantity;\n  })(entityValue, currentValue, api);"
+      },
+      "createdAt": "2024-12-24T01:31:37.743Z",
+      "fields": [],
+      "populateData": {
+        "path": "productPackageWeight",
+        "reference": null,
+        "absolutePath": "productsPacked.type:array_of_embedded_documents.productPackageWeight"
+      },
+      "readOnly": false,
+      "required": false,
+      "systemField": true,
+      "type": "COMPUTATION",
+      "unique": false,
+      "updatedAt": "2025-09-03T16:54:38.546Z",
+      "viewName": "Net weight (kg)"
+    }
+  }
+}

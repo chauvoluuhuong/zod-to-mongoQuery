@@ -174,6 +174,7 @@ export const OPERATORS: Record<string, string[]> = {
   "number[]": ["eq", "ne", "gt", "gte", "lt", "lte", "in", "nin"],
   "boolean[]": ["eq", "ne", "in", "nin"],
   "date[]": ["eq", "ne", "gt", "gte", "lt", "lte", "in", "nin"],
+  "object[]": ["eq", "ne", "in", "nin"],
   array: ["eq", "ne", "in", "nin"],
 };
 

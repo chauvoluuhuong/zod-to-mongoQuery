@@ -15,6 +15,8 @@ import {
   rootFieldToZodSchemaFromString,
 } from "../index";
 import { FieldTypeEnum, IFieldDefinition } from "../types";
+import * as fs from "fs";
+import * as path from "path";
 
 describe("getQueryAbilities", () => {
   describe("basic types", () => {
@@ -288,6 +290,35 @@ describe("getQueryAbilities", () => {
         supportedOperators: ["eq", "ne", "in", "nin"],
       });
     });
+
+    it("should extract query abilities for array of objects", () => {
+      const schema = z.object({
+        tags: z.array(
+          z.object({
+            name: z.string(),
+            color: z.string(),
+          })
+        ),
+      });
+
+      const result = getQueryAbilities(schema);
+
+      // The array field itself should have object[] type
+      expect(result.tags).toEqual({
+        type: "object[]",
+        supportedOperators: ["eq", "ne", "in", "nin"],
+      });
+
+      // Nested fields from the object should be accessible
+      expect(result["tags.name"]).toEqual({
+        type: "string",
+        supportedOperators: ["eq", "ne", "in", "nin", "regex", "search"],
+      });
+      expect(result["tags.color"]).toEqual({
+        type: "string",
+        supportedOperators: ["eq", "ne", "in", "nin", "regex", "search"],
+      });
+    });
   });
 });
 
@@ -523,11 +554,10 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      const schema = z.object(result);
 
-      expect(result.name).toBeInstanceOf(ZodString);
-      expect(schema.parse({ name: "John" })).toEqual({ name: "John" });
-      expect(() => schema.parse({ name: 123 })).toThrow();
+      expect(result.shape.name).toBeInstanceOf(ZodString);
+      expect(result.parse({ name: "John" })).toEqual({ name: "John" });
+      expect(() => result.parse({ name: 123 })).toThrow();
     });
 
     it("should convert number field to Zod number schema", () => {
@@ -546,11 +576,10 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      const schema = z.object(result);
 
-      expect(result.age).toBeInstanceOf(ZodNumber);
-      expect(schema.parse({ age: 25 })).toEqual({ age: 25 });
-      expect(() => schema.parse({ age: "25" })).toThrow();
+      expect(result.shape.age).toBeInstanceOf(ZodNumber);
+      expect(result.parse({ age: 25 })).toEqual({ age: 25 });
+      expect(() => result.parse({ age: "25" })).toThrow();
     });
 
     it("should convert boolean field to Zod boolean schema", () => {
@@ -569,11 +598,10 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      const schema = z.object(result);
 
-      expect(result.isActive).toBeInstanceOf(ZodBoolean);
-      expect(schema.parse({ isActive: true })).toEqual({ isActive: true });
-      expect(() => schema.parse({ isActive: "true" })).toThrow();
+      expect(result.shape.isActive).toBeInstanceOf(ZodBoolean);
+      expect(result.parse({ isActive: true })).toEqual({ isActive: true });
+      expect(() => result.parse({ isActive: "true" })).toThrow();
     });
 
     it("should convert date field to Zod date schema", () => {
@@ -592,11 +620,10 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      const schema = z.object(result);
 
-      expect(result.createdAt).toBeInstanceOf(ZodDate);
+      expect(result.shape.createdAt).toBeInstanceOf(ZodDate);
       const date = new Date("2024-01-01");
-      expect(schema.parse({ createdAt: date })).toEqual({ createdAt: date });
+      expect(result.parse({ createdAt: date })).toEqual({ createdAt: date });
     });
 
     it("should convert rich_text field to Zod string schema", () => {
@@ -615,10 +642,9 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      const schema = z.object(result);
 
-      expect(result.content).toBeInstanceOf(ZodString);
-      expect(schema.parse({ content: "<p>Hello</p>" })).toEqual({
+      expect(result.shape.content).toBeInstanceOf(ZodString);
+      expect(result.parse({ content: "<p>Hello</p>" })).toEqual({
         content: "<p>Hello</p>",
       });
     });
@@ -647,13 +673,12 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      const schema = z.object(result);
 
-      expect(schema.parse({ name: "John" })).toEqual({ name: "John" });
-      expect(schema.parse({ name: "John", email: "john@example.com" })).toEqual(
+      expect(result.parse({ name: "John" })).toEqual({ name: "John" });
+      expect(result.parse({ name: "John", email: "john@example.com" })).toEqual(
         { name: "John", email: "john@example.com" }
       );
-      expect(() => schema.parse({})).toThrow(); // name is required
+      expect(() => result.parse({})).toThrow(); // name is required
     });
   });
 
@@ -679,13 +704,12 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      const schema = z.object(result);
 
-      expect(schema.parse({ status: "active" })).toEqual({ status: "active" });
-      expect(schema.parse({ status: "pending" })).toEqual({
+      expect(result.parse({ status: "active" })).toEqual({ status: "active" });
+      expect(result.parse({ status: "pending" })).toEqual({
         status: "pending",
       });
-      expect(() => schema.parse({ status: "invalid" })).toThrow();
+      expect(() => result.parse({ status: "invalid" })).toThrow();
     });
 
     it("should default to string if enumValues is missing", () => {
@@ -704,10 +728,9 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      const schema = z.object(result);
 
-      expect(result.status).toBeInstanceOf(ZodString);
-      expect(schema.parse({ status: "any-value" })).toEqual({
+      expect(result.shape.status).toBeInstanceOf(ZodString);
+      expect(result.parse({ status: "any-value" })).toEqual({
         status: "any-value",
       });
     });
@@ -730,10 +753,9 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      const schema = z.object(result);
 
-      expect(result.userId).toBeInstanceOf(ZodString);
-      expect(schema.parse({ userId: "507f1f77bcf86cd799439011" })).toEqual({
+      expect(result.shape.userId).toBeInstanceOf(ZodString);
+      expect(result.parse({ userId: "507f1f77bcf86cd799439011" })).toEqual({
         userId: "507f1f77bcf86cd799439011",
       });
     });
@@ -754,11 +776,10 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      const schema = z.object(result);
 
-      expect(result.tagIds).toBeInstanceOf(ZodArray);
+      expect(result.shape.tagIds).toBeInstanceOf(ZodArray);
       expect(
-        schema.parse({
+        result.parse({
           tagIds: ["507f1f77bcf86cd799439011", "507f1f77bcf86cd799439012"],
         })
       ).toEqual({
@@ -806,11 +827,10 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      const schema = z.object(result);
 
-      expect(result.address).toBeInstanceOf(ZodObject);
+      expect(result.shape.address).toBeInstanceOf(ZodObject);
       expect(
-        schema.parse({ address: { street: "123 Main St", city: "New York" } })
+        result.parse({ address: { street: "123 Main St", city: "New York" } })
       ).toEqual({ address: { street: "123 Main St", city: "New York" } });
     });
 
@@ -852,11 +872,10 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      const schema = z.object(result);
 
-      expect(result.tags).toBeInstanceOf(ZodArray);
+      expect(result.shape.tags).toBeInstanceOf(ZodArray);
       expect(
-        schema.parse({
+        result.parse({
           tags: [
             { name: "javascript", color: "yellow" },
             { name: "typescript", color: "blue" },
@@ -888,17 +907,18 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      const schema = z.object(result);
 
       // Optional fields are wrapped in ZodOptional
-      expect(result.computedValue).toBeInstanceOf(ZodOptional);
-      if (result.computedValue instanceof ZodOptional) {
-        expect(result.computedValue._def.innerType).toBeInstanceOf(ZodAny);
+      expect(result.shape.computedValue).toBeInstanceOf(ZodOptional);
+      if (result.shape.computedValue instanceof ZodOptional) {
+        expect(result.shape.computedValue._def.innerType).toBeInstanceOf(
+          ZodAny
+        );
       }
-      expect(schema.parse({ computedValue: "any" })).toEqual({
+      expect(result.parse({ computedValue: "any" })).toEqual({
         computedValue: "any",
       });
-      expect(schema.parse({ computedValue: 123 })).toEqual({
+      expect(result.parse({ computedValue: 123 })).toEqual({
         computedValue: 123,
       });
     });
@@ -953,9 +973,8 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      const schema = z.object(result);
 
-      expect(schema.parse({ user: { profile: { bio: "Developer" } } })).toEqual(
+      expect(result.parse({ user: { profile: { bio: "Developer" } } })).toEqual(
         { user: { profile: { bio: "Developer" } } }
       );
     });
@@ -980,7 +999,7 @@ describe("rootFieldToZodSchemaFromString", () => {
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
       // Zod schemas with descriptions have the description stored internally
-      expect(result.name).toBeDefined();
+      expect(result.shape.name).toBeDefined();
     });
   });
 
@@ -1005,8 +1024,8 @@ describe("rootFieldToZodSchemaFromString", () => {
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
 
-      expect(result.customPath).toBeDefined();
-      expect(result.fieldName).toBeUndefined();
+      expect(result.shape.customPath).toBeDefined();
+      expect(result.shape.fieldName).toBeUndefined();
     });
   });
 
@@ -1026,7 +1045,7 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      expect(result).toEqual({});
+      expect(result.shape).toEqual({});
     });
 
     it("should handle null fields", () => {
@@ -1038,7 +1057,7 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      expect(result).toEqual({});
+      expect(result.shape).toEqual({});
     });
 
     it("should handle missing fields property", () => {
@@ -1049,7 +1068,7 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      expect(result).toEqual({});
+      expect(result.shape).toEqual({});
     });
   });
 
@@ -1105,7 +1124,7 @@ describe("rootFieldToZodSchemaFromString", () => {
       // We can't test maxLevel directly since it's not exposed, but we can verify
       // that deeply nested structures are handled correctly
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      expect(result.level1).toBeDefined();
+      expect(result.shape.level1).toBeDefined();
     });
   });
 
@@ -1144,20 +1163,19 @@ describe("rootFieldToZodSchemaFromString", () => {
       };
 
       const result = rootFieldToZodSchemaFromString(JSON.stringify(rootField));
-      const schema = z.object(result);
 
-      expect(result.name).toBeInstanceOf(ZodString);
-      expect(result.age).toBeInstanceOf(ZodNumber);
+      expect(result.shape.name).toBeInstanceOf(ZodString);
+      expect(result.shape.age).toBeInstanceOf(ZodNumber);
       // isActive is optional, so it's wrapped in ZodOptional
-      expect(result.isActive).toBeInstanceOf(ZodOptional);
-      if (result.isActive instanceof ZodOptional) {
-        expect(result.isActive._def.innerType).toBeInstanceOf(ZodBoolean);
+      expect(result.shape.isActive).toBeInstanceOf(ZodOptional);
+      if (result.shape.isActive instanceof ZodOptional) {
+        expect(result.shape.isActive._def.innerType).toBeInstanceOf(ZodBoolean);
       }
-      expect(result.createdAt).toBeInstanceOf(ZodDate);
+      expect(result.shape.createdAt).toBeInstanceOf(ZodDate);
 
       const date = new Date("2024-01-01");
       expect(
-        schema.parse({
+        result.parse({
           name: "John",
           age: 25,
           isActive: true,
@@ -1170,5 +1188,111 @@ describe("rootFieldToZodSchemaFromString", () => {
         createdAt: date,
       });
     });
+  });
+});
+
+describe("getQueryAbilities with rootField.json", () => {
+  it("should convert rootField.json to zod schema and get query abilities", () => {
+    // 1. Read the rootField.json file
+    const rootFieldJsonPath = path.join(__dirname, "rootField.json");
+    const rootFieldJsonString = fs.readFileSync(rootFieldJsonPath, "utf-8");
+
+    // 2. Convert JSON string to ZodObject (rootFieldToZodSchemaFromString returns ZodObject directly)
+    const zodSchema = rootFieldToZodSchemaFromString(rootFieldJsonString);
+
+    // 3. Get query abilities
+    const queryAbilities = getQueryAbilities(zodSchema);
+
+    // 4. Assert that query abilities are returned
+    expect(queryAbilities).toBeDefined();
+    expect(typeof queryAbilities).toBe("object");
+
+    // 5. Verify some expected fields from rootField.json exist
+    // Based on the rootField.json structure, we should have fields like:
+    // - packageId (string/computation)
+    // - packageOrderNumber (number/computation)
+    // - totalWeight (number/computation)
+    // - volume (string)
+    // - soDaGel (string)
+    // - exportId (reference/string)
+    // - packageCustomerId (reference/string)
+    // - productsPacked (array of embedded documents)
+
+    // Check for top-level fields
+    expect(queryAbilities).toHaveProperty("packageId");
+    expect(queryAbilities).toHaveProperty("packageOrderNumber");
+    expect(queryAbilities).toHaveProperty("totalWeight");
+    expect(queryAbilities).toHaveProperty("volume");
+    expect(queryAbilities).toHaveProperty("soDaGel");
+    expect(queryAbilities).toHaveProperty("exportId");
+    expect(queryAbilities).toHaveProperty("packageCustomerId");
+    expect(queryAbilities).toHaveProperty("productsPacked");
+
+    // Verify that each field has the expected structure
+    Object.keys(queryAbilities).forEach((fieldPath) => {
+      const ability = queryAbilities[fieldPath];
+      expect(ability).toHaveProperty("type");
+      expect(ability).toHaveProperty("supportedOperators");
+      expect(Array.isArray(ability.supportedOperators)).toBe(true);
+      expect(ability.supportedOperators.length).toBeGreaterThan(0);
+    });
+
+    // Verify specific field types based on rootField.json
+    // volume and soDaGel are strings
+    if (queryAbilities.volume) {
+      expect(queryAbilities.volume.type).toBe("string");
+      expect(queryAbilities.volume.supportedOperators).toContain("eq");
+      expect(queryAbilities.volume.supportedOperators).toContain("search");
+    }
+
+    // packageOrderNumber and totalWeight are numbers (computation fields return as any, but if they're numbers)
+    if (queryAbilities.packageOrderNumber) {
+      // Computation fields might be "unknown" type, but if they have number operators, they're treated as numbers
+      const hasNumberOperators =
+        queryAbilities.packageOrderNumber.supportedOperators.some((op) =>
+          ["gt", "gte", "lt", "lte"].includes(op)
+        );
+      // If it has number operators, it should be treated as a number type
+      if (hasNumberOperators) {
+        expect(queryAbilities.packageOrderNumber.type).toBe("number");
+      }
+    }
+
+    // productsPacked should be an array type (could be object[] for arrays of objects)
+    if (queryAbilities.productsPacked) {
+      expect(queryAbilities.productsPacked.type).toMatch(
+        /array|object\[\]|unknown/
+      );
+    }
+
+    // Verify nested fields of productsPacked (array of objects)
+    // productsPacked.quantity should exist and be a number
+    if (queryAbilities["productsPacked.quantity"]) {
+      expect(queryAbilities["productsPacked.quantity"].type).toBe("number");
+      expect(
+        queryAbilities["productsPacked.quantity"].supportedOperators
+      ).toContain("eq");
+      expect(
+        queryAbilities["productsPacked.quantity"].supportedOperators
+      ).toContain("gt");
+      expect(
+        queryAbilities["productsPacked.quantity"].supportedOperators
+      ).toContain("gte");
+    }
+
+    // productsPacked.productId should exist (reference field, typically string)
+    if (queryAbilities["productsPacked.productId"]) {
+      expect(queryAbilities["productsPacked.productId"].type).toBe("string");
+      expect(
+        queryAbilities["productsPacked.productId"].supportedOperators
+      ).toContain("eq");
+      expect(
+        queryAbilities["productsPacked.productId"].supportedOperators
+      ).toContain("search");
+    }
+
+    // Verify that query abilities contains at least some fields
+    const fieldCount = Object.keys(queryAbilities).length;
+    expect(fieldCount).toBeGreaterThan(0);
   });
 });
